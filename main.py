@@ -15,7 +15,7 @@ logging.basicConfig(
 
 # توكن البوت الموحد
 TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
-BOT_USERNAME = "Dr7a_bot"  # استبدله إذا تغيّر
+BOT_USERNAME = "Dr7a_bot"
 
 # إنشاء مجلد التحميل
 if not os.path.exists("downloads"):
@@ -64,18 +64,15 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = time.time()
     url = update.message.text.strip()
 
-    # حماية من السبام
     if user_id in user_timestamps and now - user_timestamps[user_id] < 10:
         await update.message.reply_text("⏳ الرجاء الانتظار قليلاً قبل إرسال رابط جديد.")
         return
     user_timestamps[user_id] = now
 
-    # التحقق من الرابط
     if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
         await update.message.reply_text("❌ هذا الرابط غير مدعوم. أرسل رابط من YouTube أو Facebook أو Instagram أو TikTok.")
         return
 
-    # TikTok برسالة خاصة
     if "tiktok.com" in url:
         loading_msg = random.choice(weird_messages)
         await update.message.reply_text(f"{loading_msg}\n⏳ جاري تحميل الفيديو...")
@@ -95,26 +92,22 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ فشل التحميل من TikTok:\n{str(e)}")
         return
 
-    # باقي المواقع
     await update.message.reply_text("📥 جاري تحميل الفيديو، يرجى الانتظار...")
 
     try:
-        ydl_opts = {
-            'outtmpl': 'downloads/%(id)s.%(ext)s',
-            'format': 'mp4',
-            'quiet': True,
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            file_path = ydl.prepare_filename(info)
+        file_path = "downloads/video.mp4"
+        command = ["yt-dlp", "-f", "mp4", "--cookies", "cookies.txt", "-o", file_path, url]
+        subprocess.run(command, check=True)
 
         if os.path.exists(file_path):
             await update.message.reply_video(video=open(file_path, "rb"))
             os.remove(file_path)
         else:
             await update.message.reply_text("❌ لم يتم العثور على الملف بعد التحميل.")
-    except Exception as e:
+    except subprocess.CalledProcessError as e:
         await update.message.reply_text(f"❌ خطأ أثناء تحميل الفيديو:\n{str(e)}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطأ غير متوقع:\n{str(e)}")
 
 # تشغيل البوت
 def main():
