@@ -15,7 +15,7 @@ logging.basicConfig(
 
 # توكن البوت الموحد
 TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
-BOT_USERNAME = "Dr7a_bot"
+BOT_USERNAME = "Dr7a_bot"  # استبدله إذا تغيّر
 
 # إنشاء مجلد التحميل
 if not os.path.exists("downloads"):
@@ -64,15 +64,18 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = time.time()
     url = update.message.text.strip()
 
+    # حماية من السبام
     if user_id in user_timestamps and now - user_timestamps[user_id] < 10:
         await update.message.reply_text("⏳ الرجاء الانتظار قليلاً قبل إرسال رابط جديد.")
         return
     user_timestamps[user_id] = now
 
+    # التحقق من الرابط
     if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
         await update.message.reply_text("❌ هذا الرابط غير مدعوم. أرسل رابط من YouTube أو Facebook أو Instagram أو TikTok.")
         return
 
+    # TikTok برسالة خاصة
     if "tiktok.com" in url:
         loading_msg = random.choice(weird_messages)
         await update.message.reply_text(f"{loading_msg}\n⏳ جاري تحميل الفيديو...")
@@ -92,6 +95,7 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ فشل التحميل من TikTok:\n{str(e)}")
         return
 
+    # باقي المواقع
     await update.message.reply_text("📥 جاري تحميل الفيديو، يرجى الانتظار...")
 
     try:
