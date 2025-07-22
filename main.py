@@ -99,19 +99,22 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📥 جاري تحميل الفيديو، يرجى الانتظار...")
 
     try:
-        file_path = "downloads/video.mp4"
-        command = ["yt-dlp", "-f", "mp4", "-o", file_path, url]
-        subprocess.run(command, check=True)
+        ydl_opts = {
+            'outtmpl': 'downloads/%(id)s.%(ext)s',
+            'format': 'mp4',
+            'quiet': True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            file_path = ydl.prepare_filename(info)
 
         if os.path.exists(file_path):
             await update.message.reply_video(video=open(file_path, "rb"))
             os.remove(file_path)
         else:
             await update.message.reply_text("❌ لم يتم العثور على الملف بعد التحميل.")
-    except subprocess.CalledProcessError as e:
-        await update.message.reply_text(f"❌ خطأ أثناء تحميل الفيديو:\n{str(e)}")
     except Exception as e:
-        await update.message.reply_text(f"❌ خطأ غير متوقع:\n{str(e)}")
+        await update.message.reply_text(f"❌ خطأ أثناء تحميل الفيديو:\n{str(e)}")
 
 # تشغيل البوت
 def main():
