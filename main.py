@@ -235,6 +235,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     if query.data == "get_user_id":
+        user = query.from_user
+        await query.message.reply_text(f"🪪 معرفك هو: `{user.id}`", parse_mode=ParseMode.MARKDOWN)
+        return
     elif query.data == "my_stats":
         user_id = query.from_user.id
         reset_daily_limits()
