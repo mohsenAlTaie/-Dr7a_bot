@@ -3,9 +3,10 @@ import random
 import logging
 import time
 import subprocess
+from datetime import datetime
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import yt_dlp
 
 # إعداد اللوج
@@ -40,12 +41,22 @@ weird_messages = [
 # نظام حماية من السبام
 user_timestamps = {}
 
+# عداد التحميلات اليومية
+daily_limits = {}
+DAILY_LIMIT = 30
+
+def reset_daily_limits():
+    current_date = datetime.utcnow().date()
+    for user_id in list(daily_limits):
+        if daily_limits[user_id]["date"] != current_date:
+            daily_limits[user_id] = {"count": 0, "date": current_date}
+
 # رسالة /start موحدة
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
-        [InlineKeyboardButton("💎 اشترك في VIP", callback_data="vip_info")],
-        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
+        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")],
+        [InlineKeyboardButton("💎 شراء VIP", url="https://t.me/K0_MG")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -54,28 +65,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "هل أنت مستعدّ لاختراق عوالم الفيديوهات من فيسبوك، يوتيوب، إنستغرام، وتيك توك؟ 🚀📥\n"
         "هنا حيث تنصهر الروابط وتولد الملفات! 🌐🔥\n\n"
         "📎 فقط أرسل الرابط، وسأقوم بالباقي... لا حاجة للشرح، فقط الثقة 💼🤖\n\n"
+        "💎 لرفع عدد التحميلات وفتح ميزات VIP يمكنك الدفع عبر:\n"
+        "- آسياسيل\n"
+        "- زين كاش\n"
+        "- ماستر كارد\n\n"
         "🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻"
     )
 
     await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
 
-# رد على زر VIP
-async def vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    message = (
-        "💎 *اشترك في VIP الآن!*\n\n"
-        "✅ تحميل غير محدود\n"
-        "⚡ أولوية بالسرعة\n"
-        "📞 دعم خاص من المطور\n\n"
-        "💳 طرق الدفع:\n"
-        "• آسيا سيل\n"
-        "• زين كاش\n"
-        "• ماستر كارد\n\n"
-        "راسل المطور لتفعيل الاشتراك:"
-    )
-    buttons = [[InlineKeyboardButton("🧑‍💻 راسل المطور", url="https://t.me/K0_MG")]]
-    await query.message.reply_text(message, reply_markup=InlineKeyboardMarkup(buttons), parse_mode=ParseMode.MARKDOWN)
+# أمر عرض عدد التحميلات المتبقية
+async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    reset_daily_limits()
+    user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
+    remaining = DAILY_LIMIT - user_data["count"]
+    await update.message.reply_text(f"📊 عدد التحميلات المتبقية اليوم: {remaining} من {DAILY_LIMIT}")
 
 # الدالة الأساسية لتحليل وتحميل الفيديو
 async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -88,6 +93,14 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⏳ الرجاء الانتظار قليلاً قبل إرسال رابط جديد.")
         return
     user_timestamps[user_id] = now
+
+    # التحقق من الحد اليومي
+    reset_daily_limits()
+    user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
+    if user_data["count"] >= DAILY_LIMIT:
+        await update.message.reply_text("🚫 وصلت للحد الأقصى من التحميلات اليومية (30). الرجاء المحاولة غدًا أو الترقية إلى VIP.")
+        return
+    daily_limits[user_id] = {"count": user_data["count"] + 1, "date": datetime.utcnow().date()}
 
     # التحقق من الرابط
     if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
@@ -146,7 +159,7 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(vip_info, pattern="vip_info"))
+    app.add_handler(CommandHandler("usage", usage))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
     app.run_polling()
 
