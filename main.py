@@ -99,10 +99,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     reset_daily_limits()
-    limit = DAILY_LIMIT_VIP if is_vip(user_id) else DAILY_LIMIT_FREE
+    limit = float('inf') if is_vip(user_id) else DAILY_LIMIT_FREE
     user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
     remaining = limit - user_data["count"]
-    await update.message.reply_text(f"📊 عدد التحميلات المتبقية اليوم: {remaining} من {limit}")
+    await update.message.reply_text(f"📊 عدد التحميلات المتبقية اليوم: {'غير محدود' if is_vip(user_id) else f'{remaining} من {limit}'}")
 
 async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -141,7 +141,7 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_timestamps[user_id] = now
 
     reset_daily_limits()
-    limit = DAILY_LIMIT_VIP if is_vip(user_id) else DAILY_LIMIT_FREE
+    limit = float('inf') if is_vip(user_id) else DAILY_LIMIT_FREE
     user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
     if user_data["count"] >= limit:
         await update.message.reply_text("🚫 وصلت للحد الأقصى. الرجاء المحاولة غدًا أو الترقية إلى VIP.")
@@ -191,8 +191,6 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ خطأ غير متوقع: {str(e)}")
 
 async def add_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if str(update.effective_user.id) != "7249021797":
-        return
 
     if update.effective_user.id != 7249021797:
         await update.message.reply_text("❌ هذا الأمر مخصص للإدارة فقط.")
@@ -207,8 +205,6 @@ async def add_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ الاستخدام الصحيح: /addvip [id] [days]")
 
 async def remove_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if str(update.effective_user.id) != "7249021797":
-        return
 
     if update.effective_user.id != 7249021797:
         await update.message.reply_text("❌ هذا الأمر مخصص للإدارة فقط.")
@@ -222,8 +218,6 @@ async def remove_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ الاستخدام الصحيح: /removevip [id]")
 
 async def vip_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if str(update.effective_user.id) != "7249021797":
-        return
 
     if update.effective_user.id != 7249021797:
         await update.message.reply_text("❌ هذا الأمر مخصص للإدارة فقط.")
@@ -241,13 +235,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     if query.data == "get_user_id":
-        user = query.from_user
-        await query.message.reply_text(f"🪪 معرفك هو: `{user.id}`", parse_mode=ParseMode.MARKDOWN)
-        return
     elif query.data == "my_stats":
         user_id = query.from_user.id
         reset_daily_limits()
-        limit = DAILY_LIMIT_VIP if is_vip(user_id) else DAILY_LIMIT_FREE
+        limit = float('inf') if is_vip(user_id) else DAILY_LIMIT_FREE
         user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
         remaining = limit - user_data["count"]
         await query.message.reply_text(f"📊 عدد تحميلاتك اليوم: {user_data['count']} / {limit}")
@@ -262,9 +253,24 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_expiry(update, context)
 
 
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_user.id) != "7249021797":
+        return
+    text = (
+        "🛠️ *لوحة تحكم الأدمن:*
+"
+        "• /addvip [id] [days] - إضافة VIP
+"
+        "• /removevip [id] - إزالة VIP
+"
+        "• /viplist - عرض قائمة VIP"
+    )
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("usage", usage))
     app.add_handler(CommandHandler("addvip", add_vip_cmd))
     app.add_handler(CommandHandler("removevip", remove_vip_cmd))
