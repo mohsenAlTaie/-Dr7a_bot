@@ -84,6 +84,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🕓 معلومات الاشتراك", callback_data="vip_expiry")],
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
         [InlineKeyboardButton("📲 معرفي", callback_data="get_user_id")],
+        [InlineKeyboardButton("📊 إحصائياتي", callback_data="my_stats")],
         [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -91,7 +92,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*\n\n"
         "هل أنت مستعدّ لاختراق عوالم الفيديوهات؟ 🚀📅\n"
         "📌 فقط أرسل الرابط، وسأقوم بالباقي...\n\n"
-        "🛠️ *برمجة محسن الطائي * 🎮💻"
+        "🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻"
     )
     await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
 
@@ -219,6 +220,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     if query.data == "get_user_id":
+    elif query.data == "my_stats":
+        user_id = query.from_user.id
+        reset_daily_limits()
+        limit = DAILY_LIMIT_VIP if is_vip(user_id) else DAILY_LIMIT_FREE
+        user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
+        remaining = limit - user_data["count"]
+        await query.message.reply_text(f"📊 عدد تحميلاتك اليوم: {user_data['count']} / {limit}")
+        return
+
         user = query.from_user
         await query.message.reply_text(f"🪪 معرفك هو: `{user.id}`", parse_mode=ParseMode.MARKDOWN)
         return
