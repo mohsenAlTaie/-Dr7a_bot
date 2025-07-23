@@ -260,7 +260,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "vip_info":
         await show_vip_info(update, context)
     elif query.data == "vip_expiry":
+        await show_expiry(update, context)
     elif query.data == "admin_panel":
+        await show_admin_panel(update, context)
         await show_admin_panel(update, context)
         await show_expiry(update, context)
 
