@@ -262,7 +262,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "vip_expiry":
         await show_expiry(update, context)
     elif query.data == "admin_panel":
-        await show_admin_panel(update, context)
+        if query.from_user.id != 7249021797:
+            await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
+            return
+        keyboard = [
+            [InlineKeyboardButton("➕ إضافة VIP", callback_data="cmd_addvip")],
+            [InlineKeyboardButton("🗑️ حذف VIP", callback_data="cmd_removevip")],
+            [InlineKeyboardButton("📋 قائمة VIP", callback_data="cmd_viplist")]
+        ]
+        await query.message.reply_text("⚙️ *لوحة التحكم الإدارية:*", parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
         await show_admin_panel(update, context)
         await show_admin_panel(update, context)
         await show_expiry(update, context)
@@ -284,19 +293,6 @@ if __name__ == "__main__":
     main()
 
 async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    if query.from_user.id != 7249021797:
-        await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
-        return
-    keyboard = [
-        [InlineKeyboardButton("➕ إضافة VIP", callback_data="cmd_addvip"),
-         InlineKeyboardButton("🗑️ حذف VIP", callback_data="cmd_removevip")],
-        [InlineKeyboardButton("📋 قائمة VIP", callback_data="cmd_viplist")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.message.reply_text("⚙️ *لوحة التحكم الإدارية:*", reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-
     query = update.callback_query
     await query.answer()
     if query.from_user.id != 7249021797:
