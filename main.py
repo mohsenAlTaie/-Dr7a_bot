@@ -33,6 +33,7 @@ def is_vip(user_id: int):
         if datetime.strptime(row[0], "%Y-%m-%d") >= datetime.utcnow():
             return True
     return False
+    return False
 
 def get_vip_expiry(user_id: int):
     c.execute("SELECT expires_at FROM vip_users WHERE user_id = ?", (user_id,))
