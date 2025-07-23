@@ -79,20 +79,20 @@ def reset_daily_limits():
             daily_limits[user_id] = {"count": 0, "date": current_date}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
     keyboard = [
         [InlineKeyboardButton("💎 معلومات VIP", callback_data="vip_info")],
         [InlineKeyboardButton("🕓 معلومات الاشتراك", callback_data="vip_expiry")],
-        [InlineKeyboardButton("🆔 معرفي", callback_data="get_id")],
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
         [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
     ]
+
+    # زر الأوامر يظهر فقط لمستخدم معين
+    if user_id == 6172798312:
+        keyboard.insert(0, [InlineKeyboardButton("📜 الأوامر", callback_data="show_commands")])
+
     reply_markup = InlineKeyboardMarkup(keyboard)
-    welcome_message = (
-        "👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*\n\n"
-        "هل أنت مستعدّ لاختراق عوالم الفيديوهات؟ 🚀📅\n"
-        "📌 فقط أرسل الرابط، وسأقوم بالباقي...\n\n"
-        "🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻"
-    )
+    welcome_message = "⚡️ هــــلا بـوحش التحميل الغامض ⚙️🖤"
     await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
 
 async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -128,12 +128,6 @@ async def show_expiry(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"💎 صلاحية اشتراكك تنتهي في: `{expiry}`", parse_mode=ParseMode.MARKDOWN)
     else:
         await query.edit_message_text("❌ ليس لديك اشتراك VIP حاليًا.")
-
-async def show_user_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    await query.edit_message_text(f"🆔 معرفك هو: `{user_id}`", parse_mode=ParseMode.MARKDOWN)
 
 async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -229,7 +223,6 @@ def main():
     app.add_handler(CommandHandler("viplist", vip_list))
     app.add_handler(CallbackQueryHandler(show_vip_info, pattern="vip_info"))
     app.add_handler(CallbackQueryHandler(show_expiry, pattern="vip_expiry"))
-    app.add_handler(CallbackQueryHandler(show_user_id, pattern="get_id"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
     app.run_polling()
 
