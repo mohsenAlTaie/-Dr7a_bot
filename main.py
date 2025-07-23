@@ -262,6 +262,7 @@ def main():
     app.add_handler(CommandHandler("viplist", vip_list))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
+    print("✅ تم تشغيل البوت بنجاح")
     app.run_polling()
 
 if __name__ == "__main__":
