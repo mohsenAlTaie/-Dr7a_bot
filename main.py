@@ -85,8 +85,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📲 معرفي", callback_data="get_user_id")],
         [InlineKeyboardButton("📊 إحصائياتي", callback_data="my_stats")],
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
-        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")],
-        [InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")]
+        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
     ]
     if update.effective_user.id == 7249021797:
         keyboard.append([InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")])
@@ -261,7 +260,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "vip_info":
         await show_vip_info(update, context)
     elif query.data == "vip_expiry":
+        await show_expiry(update, context)
     elif query.data == "admin_panel":
+        await show_admin_panel(update, context)
         await show_admin_panel(update, context)
         await show_expiry(update, context)
 
@@ -287,18 +288,6 @@ async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.from_user.id != 7249021797:
         await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
         return
-    elif query.data == "admin_panel":
-        if query.from_user.id != 7249021797:
-            await query.message.reply_text("❌ هذه الميزة متاحة فقط للإدارة.")
-            return
-        keyboard = [
-            [InlineKeyboardButton("➕ إضافة VIP", callback_data="cmd_addvip")],
-            [InlineKeyboardButton("🗑️ حذف VIP", callback_data="cmd_removevip")],
-            [InlineKeyboardButton("📋 قائمة VIP", callback_data="cmd_viplist")]
-        ]
-        await query.message.reply_text("⚙️ *لوحة التحكم الإدارية:*", parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(keyboard))
-        return
-
     keyboard = [
         [InlineKeyboardButton("✅ تفعيل VIP", callback_data="activate_vip"),
          InlineKeyboardButton("❌ حذف VIP", callback_data="remove_vip")],
