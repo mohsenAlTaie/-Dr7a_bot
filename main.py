@@ -82,14 +82,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("💎 معلومات VIP", callback_data="vip_info")],
         [InlineKeyboardButton("🕓 معلومات الاشتراك", callback_data="vip_expiry")],
-        [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
-        [InlineKeyboardButton("📲 معرفي", callback_data="get_user_id")],
-        [InlineKeyboardButton("📊 إحصائياتي", callback_data="my_stats")],
-        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
-        ] + ([InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")] if update.effective_user.id == 7249021797 else [])
-    keyboard = [
-        [InlineKeyboardButton("💎 معلومات VIP", callback_data="vip_info")],
-        [InlineKeyboardButton("🕓 معلومات الاشتراك", callback_data="vip_expiry")],
         [InlineKeyboardButton("📲 معرفي", callback_data="get_user_id")],
         [InlineKeyboardButton("📊 إحصائياتي", callback_data="my_stats")],
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
@@ -97,9 +89,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     if update.effective_user.id == 7249021797:
         keyboard.append([InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    welcome_message = (
+        "👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*
+
+"
+        "هل أنت مستعدّ لاختراق عوالم الفيديوهات؟ 🚀📅
+"
+        "📌 فقط أرسل الرابط، وسأقوم بالباقي...
+
+"
+        "🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻"
     )
     await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-
 async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     reset_daily_limits()
