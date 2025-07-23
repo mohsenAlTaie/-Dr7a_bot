@@ -41,6 +41,9 @@ weird_messages = [
 # نظام حماية من السبام
 user_timestamps = {}
 
+# VIP Users
+VIP_USERS = [123456789]  # حط الآيدي الخاص بيك أو بأي مستخدم VIP هنا
+
 # عداد التحميلات اليومية
 daily_limits = {}
 DAILY_LIMIT = 30
@@ -88,19 +91,20 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = time.time()
     url = update.message.text.strip()
 
-    # حماية من السبام
-    if user_id in user_timestamps and now - user_timestamps[user_id] < 10:
-        await update.message.reply_text("⏳ الرجاء الانتظار قليلاً قبل إرسال رابط جديد.")
-        return
-    user_timestamps[user_id] = now
+    # حماية من السبام (لغير VIP)
+    if user_id not in VIP_USERS:
+        if user_id in user_timestamps and now - user_timestamps[user_id] < 10:
+            await update.message.reply_text("⏳ الرجاء الانتظار قليلاً قبل إرسال رابط جديد.")
+            return
+        user_timestamps[user_id] = now
 
-    # التحقق من الحد اليومي
-    reset_daily_limits()
-    user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
-    if user_data["count"] >= DAILY_LIMIT:
-        await update.message.reply_text("🚫 وصلت للحد الأقصى من التحميلات اليومية (30). الرجاء المحاولة غدًا أو الترقية إلى VIP.")
-        return
-    daily_limits[user_id] = {"count": user_data["count"] + 1, "date": datetime.utcnow().date()}
+        # التحقق من الحد اليومي
+        reset_daily_limits()
+        user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
+        if user_data["count"] >= DAILY_LIMIT:
+            await update.message.reply_text("🚫 وصلت للحد الأقصى من التحميلات اليومية (30). الرجاء المحاولة غدًا أو الترقية إلى VIP.")
+            return
+        daily_limits[user_id] = {"count": user_data["count"] + 1, "date": datetime.utcnow().date()}
 
     # التحقق من الرابط
     if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
