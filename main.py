@@ -87,7 +87,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📊 إحصائياتي", callback_data="my_stats")],
         [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    if update.effective_user.id == 7249021797:        keyboard.append([InlineKeyboardButton("🛠️ أوامر الأدمن", callback_data="admin_menu")])    reply_markup = InlineKeyboardMarkup(keyboard)
     welcome_message = (
         "👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*\n\n"
         "هل أنت مستعدّ لاختراق عوالم الفيديوهات؟ 🚀📅\n"
@@ -235,9 +235,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     if query.data == "get_user_id":
-        user = query.from_user
-        await query.message.reply_text(f"🪪 معرفك هو: `{user.id}`", parse_mode=ParseMode.MARKDOWN)
-        return
     elif query.data == "my_stats":
         user_id = query.from_user.id
         reset_daily_limits()
@@ -256,16 +253,49 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_expiry(update, context)
 
 
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_user.id) != "7249021797":
+        return
+    text = (
+        "🛠️ *لوحة تحكم الأدمن:*
+"
+        "• /addvip [id] [days] - إضافة VIP
+"
+        "• /removevip [id] - إزالة VIP
+"
+        "• /viplist - عرض قائمة VIP"
+    )
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("usage", usage))
     app.add_handler(CommandHandler("addvip", add_vip_cmd))
     app.add_handler(CommandHandler("removevip", remove_vip_cmd))
     app.add_handler(CommandHandler("viplist", vip_list))
-    app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(CallbackQueryHandler(show_admin_menu, pattern="admin_menu"))    app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
     app.run_polling()
 
 if __name__ == "__main__":
     main()
+
+async def show_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.from_user.id != 7249021797:
+        await query.edit_message_text("🚫 هذا الخيار مخصص فقط للأدمن.")
+        return
+    text = (
+        "🛠️ *قائمة أوامر الأدمن:*
+
+"
+        "/addvip [id] [days] — إضافة VIP
+"
+        "/removevip [id] — إزالة VIP
+"
+        "/viplist — عرض قائمة VIP"
+    )
+    await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN)
