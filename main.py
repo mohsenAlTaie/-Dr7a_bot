@@ -104,7 +104,7 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # كوكيز المواقع
         if "facebook.com" in url or "fb.watch" in url:
-            command += ["--cookies", "cookies_facebook.txt"]
+            command += ["--cookies", "facebook_cookies.txt"]
         elif "youtube.com" in url or "youtu.be" in url:
             command += ["--cookies", "youtube_cookies.txt"]
         elif "instagram.com" in url:
