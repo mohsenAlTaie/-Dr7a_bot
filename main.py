@@ -5,7 +5,7 @@ import time
 import subprocess
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 import yt_dlp
 
 # إعداد اللوج
@@ -44,6 +44,7 @@ user_timestamps = {}
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
+        [InlineKeyboardButton("💎 اشترك في VIP", callback_data="vip_info")],
         [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -57,6 +58,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+
+# رد على زر VIP
+async def vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    message = (
+        "💎 *اشترك في VIP الآن!*\n\n"
+        "✅ تحميل غير محدود\n"
+        "⚡ أولوية بالسرعة\n"
+        "📞 دعم خاص من المطور\n\n"
+        "💳 طرق الدفع:\n"
+        "• آسيا سيل\n"
+        "• زين كاش\n"
+        "• ماستر كارد\n\n"
+        "راسل المطور لتفعيل الاشتراك:"
+    )
+    buttons = [[InlineKeyboardButton("🧑‍💻 راسل المطور", url="https://t.me/K0_MG")]]
+    await query.message.reply_text(message, reply_markup=InlineKeyboardMarkup(buttons), parse_mode=ParseMode.MARKDOWN)
 
 # الدالة الأساسية لتحليل وتحميل الفيديو
 async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -95,12 +114,6 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ فشل التحميل من TikTok:\n{str(e)}")
         return
 
-    # التحقق من روابط فيسبوك غير المباشرة
-    if "facebook.com" in url:
-        if "videos" not in url and "watch" not in url and "/story.php" not in url:
-            await update.message.reply_text("❌ الرابط غير مباشر.\nيرجى فتح الفيديو ونسخ رابطه الكامل من الشريط الأعلى.")
-            return
-
     # باقي المواقع
     await update.message.reply_text("📥 جاري تحميل الفيديو، يرجى الانتظار...")
 
@@ -133,6 +146,7 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(vip_info, pattern="vip_info"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
     app.run_polling()
 
