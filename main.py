@@ -294,4 +294,3 @@ async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.message.reply_text("⚙️ *لوحة التحكم الإدارية:*", reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-    
