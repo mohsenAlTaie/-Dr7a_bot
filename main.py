@@ -86,7 +86,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📲 معرفي", callback_data="get_user_id")],
         [InlineKeyboardButton("📊 إحصائياتي", callback_data="my_stats")],
         [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
-        ] + ([InlineKeyboardButton("⚙️ أوامر البوت", callback_data="admin_menu")] if update.effective_user.id == 7249021797 else [])
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     welcome_message = (
@@ -251,8 +250,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "vip_info":
         await show_vip_info(update, context)
     elif query.data == "vip_expiry":
-    elif query.data == "admin_menu":
-        await show_admin_menu(update, context)
         await show_expiry(update, context)
 
 
@@ -270,21 +267,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-async def show_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    if query.from_user.id != 7249021797:
-        await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
-        return
-    text = (
-        "⚙️ *أوامر البوت الإدارية:*
-
-"
-        "/addvip [id] [days] — إضافة مستخدم VIP
-"
-        "/removevip [id] — حذف مستخدم VIP
-"
-        "/viplist — عرض قائمة VIP"
-    )
-    await query.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
