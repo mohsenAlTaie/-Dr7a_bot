@@ -58,8 +58,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("💎 معلومات VIP", callback_data="vip_info")],
         [InlineKeyboardButton("💳 طرق الدفع", callback_data="payment_info")],
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
-        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")],
-        [InlineKeyboardButton("💎 شراء VIP", url="https://t.me/K0_MG")]
+        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -98,13 +97,14 @@ async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     await query.edit_message_text(
-        "💎 *مميزات VIP:*\n"
-        "- تحميل غير محدود يوميًا\n"
-        "- أولوية في السرعة والسيرفر\n"
-        "- دعم فني خاص\n\n"
-        "🎁 السعر الشهري: 3,000 دينار فقط\n\n"
-        "للاشتراك أو الاستفسار، راسل المطور:\n"
-        "@K0_MG",
+        "💎 *مميزات الاشتراك في VIP:*\n\n"
+        "✅ تحميل غير محدود يوميًا\n"
+        "⚡ سرعة تحميل أعلى\n"
+        "⏱️ لا يوجد انتظار بين الروابط\n"
+        "🚀 أولوية في السيرفر والمعالجة\n"
+        "🧑‍💻 دعم فني مباشر من المطور\n\n"
+        "🎁 السعر الشهري: فقط 3,000 دينار عراقي\n"
+        "للاشتراك اضغط على زر *💳 طرق الدفع*.",
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -112,14 +112,17 @@ async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def show_payment_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    keyboard = [
+        [InlineKeyboardButton("💬 تواصل مع المطور للاشتراك", url="https://t.me/K0_MG")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text(
         "💳 *طرق الدفع المتوفرة:*\n\n"
         "- آسياسيل\n"
         "- زين كاش\n"
-        "- ماستر كارد\n\n"
-        "للدفع والاستفسار راسل المطور:\n"
-        "@K0_MG",
-        parse_mode=ParseMode.MARKDOWN
+        "- ماستر كارد\n",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=reply_markup
     )
 
 # الدالة الأساسية لتحليل وتحميل الفيديو
