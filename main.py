@@ -71,7 +71,7 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_timestamps[user_id] = now
 
     # التحقق من الرابط
-    if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "tiktok.com"]):
+    if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
         await update.message.reply_text("❌ هذا الرابط غير مدعوم. أرسل رابط من YouTube أو Facebook أو Instagram أو TikTok.")
         return
 
@@ -102,13 +102,13 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_path = "downloads/video.mp4"
         command = ["yt-dlp", "-f", "mp4"]
 
-        # ملفات الكوكيز حسب الموقع
+        # كوكيز المواقع
         if "facebook.com" in url or "fb.watch" in url:
             command += ["--cookies", "cookies_facebook.txt"]
-        elif "instagram.com" in url:
-            command += ["--cookies", "cookies_instagram.txt"]
         elif "youtube.com" in url or "youtu.be" in url:
-            command += ["--cookies", "cookies_youtube.txt"]
+            command += ["--cookies", "youtube_cookies.txt"]
+        elif "instagram.com" in url:
+            command += ["--cookies", "instagram_cookies.txt"]
 
         command += ["-o", file_path, url]
         subprocess.run(command, check=True)
