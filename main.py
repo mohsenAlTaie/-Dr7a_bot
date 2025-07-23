@@ -83,14 +83,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("💎 معلومات VIP", callback_data="vip_info")],
         [InlineKeyboardButton("🕓 معلومات الاشتراك", callback_data="vip_expiry")],
+        [InlineKeyboardButton("📮 إرسال معرفي لتفعيل VIP", callback_data="send_id")],
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
         [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
     ]
-
-    # زر الأوامر يظهر فقط لمستخدم معين
     if user_id == 7249021797:
         keyboard.insert(0, [InlineKeyboardButton("📜 الأوامر", callback_data="show_commands")])
-
     reply_markup = InlineKeyboardMarkup(keyboard)
     welcome_message = "⚡️ هــــلا بـوحش التحميل الغامض ⚙️🖤"
     await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
@@ -189,6 +187,12 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ خطأ غير متوقع: {str(e)}")
 
+async def send_id_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    await query.edit_message_text(f"🆔 معرفك هو: `{user_id}`\n\n📤 أرسل هذا المعرف للمطور لتفعيل VIP.", parse_mode=ParseMode.MARKDOWN)
+
 async def add_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         user_id = int(context.args[0])
@@ -223,6 +227,7 @@ def main():
     app.add_handler(CommandHandler("viplist", vip_list))
     app.add_handler(CallbackQueryHandler(show_vip_info, pattern="vip_info"))
     app.add_handler(CallbackQueryHandler(show_expiry, pattern="vip_expiry"))
+    app.add_handler(CallbackQueryHandler(send_id_callback, pattern="send_id"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
     app.run_polling()
 
