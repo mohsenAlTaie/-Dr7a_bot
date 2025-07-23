@@ -15,7 +15,7 @@ logging.basicConfig(
 
 # توكن البوت الموحد
 TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
-BOT_USERNAME = "Dr7a_bot"  # استبدله إذا تغيّر
+BOT_USERNAME = "Dr7a_bot"
 
 # إنشاء مجلد التحميل
 if not os.path.exists("downloads"):
@@ -71,7 +71,7 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_timestamps[user_id] = now
 
     # التحقق من الرابط
-    if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
+    if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "tiktok.com"]):
         await update.message.reply_text("❌ هذا الرابط غير مدعوم. أرسل رابط من YouTube أو Facebook أو Instagram أو TikTok.")
         return
 
@@ -100,7 +100,17 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         file_path = "downloads/video.mp4"
-        command = ["yt-dlp", "-f", "mp4", "--cookies", "cookies.txt", "-o", file_path, url]
+        command = ["yt-dlp", "-f", "mp4"]
+
+        # ملفات الكوكيز حسب الموقع
+        if "facebook.com" in url or "fb.watch" in url:
+            command += ["--cookies", "cookies_facebook.txt"]
+        elif "instagram.com" in url:
+            command += ["--cookies", "cookies_instagram.txt"]
+        elif "youtube.com" in url or "youtu.be" in url:
+            command += ["--cookies", "cookies_youtube.txt"]
+
+        command += ["-o", file_path, url]
         subprocess.run(command, check=True)
 
         if os.path.exists(file_path):
