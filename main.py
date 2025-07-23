@@ -88,7 +88,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     # زر الأوامر يظهر فقط لمستخدم معين
-    if user_id == 6172798312:
+    if user_id == 7249021797:
         keyboard.insert(0, [InlineKeyboardButton("📜 الأوامر", callback_data="show_commands")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -108,7 +108,7 @@ async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     text = (
         "💎 *معلومات اشتراك VIP:*\n\n"
-        "✅ تحميل حتى 100 فيديو باليوم\n"
+        "✅ تحميل بلا حدود فيديو باليوم\n"
         "❌ لا انتظار بين التحميلات\n"
         "⚡ أولوية في السرعة\n"
         "🔐 دعم الملفات الخاصة\n\n"
