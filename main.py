@@ -87,7 +87,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📊 إحصائياتي", callback_data="my_stats")],
         [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
     ]
-    if update.effective_user.id == 7249021797:        keyboard.append([InlineKeyboardButton("🛠️ أوامر الأدمن", callback_data="admin_menu")])    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = InlineKeyboardMarkup(keyboard)
     welcome_message = (
         "👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*\n\n"
         "هل أنت مستعدّ لاختراق عوالم الفيديوهات؟ 🚀📅\n"
@@ -257,12 +257,9 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if str(update.effective_user.id) != "7249021797":
         return
     text = (
-        "🛠️ *لوحة تحكم الأدمن:*
-"
-        "• /addvip [id] [days] - إضافة VIP
-"
-        "• /removevip [id] - إزالة VIP
-"
+        "🛠️ *لوحة تحكم الأدمن:*\n"
+        "• /addvip [id] [days] - إضافة VIP\n"
+        "• /removevip [id] - إزالة VIP\n"
         "• /viplist - عرض قائمة VIP"
     )
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
@@ -275,23 +272,9 @@ def main():
     app.add_handler(CommandHandler("addvip", add_vip_cmd))
     app.add_handler(CommandHandler("removevip", remove_vip_cmd))
     app.add_handler(CommandHandler("viplist", vip_list))
-    app.add_handler(CallbackQueryHandler(show_admin_menu, pattern="admin_menu"))    app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
     app.run_polling()
 
 if __name__ == "__main__":
     main()
-
-async def show_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    if query.from_user.id != 7249021797:
-        await query.edit_message_text("🚫 هذا الخيار مخصص فقط للأدمن.")
-        return
-    text = (
-        "🛠️ *قائمة أوامر الأدمن:*\n\n"
-        "/addvip [id] [days] — إضافة VIP\n"
-        "/removevip [id] — إزالة VIP\n"
-        "/viplist — عرض قائمة VIP"
-    )
-    await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN)
