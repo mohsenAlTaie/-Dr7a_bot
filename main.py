@@ -52,6 +52,21 @@ def list_vips():
     c.execute("SELECT user_id, expires_at FROM vip_users")
     return c.fetchall()
 
+weird_messages = [
+    "👽 جاري التواصل مع كائنات TikTok الفضائية...",
+    "🔮 فتح بوابة الزمن الرقمي...",
+    "🧪 خلط فيديوهات TikTok في المختبر السري...",
+    "🐍 استدعاء تنين TikTok لتحميل الفيديو...",
+    "📡 التقاط إشارة من سيرفرات الصين...",
+    "🚀 تحميل الفيديو بسرعة تتجاوز سرعة الضوء... تقريبًا",
+    "🧠 استخدام الذكاء الاصطناعي لفك شيفرة الرابط...",
+    "💿 إدخال قرص TikTok داخل مشغل VHS الفضائي...",
+    "👾 استدعاء روبوت التحميل من بعد آخر...",
+    "🍕 رش جبنة على الرابط للحصول على نكهة أفضل للفيديو...",
+    "🎩 تحويل الرابط إلى أرنب وسحبه من القبعة...",
+    "🐢 تحميل الفيديو... بسرعة سلحفاة نينجا 🐢 (امزح، هو سريع!)"
+]
+
 user_timestamps = {}
 daily_limits = {}
 DAILY_LIMIT_FREE = 10
@@ -64,19 +79,19 @@ def reset_daily_limits():
             daily_limits[user_id] = {"count": 0, "date": current_date}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
     keyboard = [
         [InlineKeyboardButton("💎 معلومات VIP", callback_data="vip_info")],
         [InlineKeyboardButton("🕓 معلومات الاشتراك", callback_data="vip_expiry")],
-        [InlineKeyboardButton("📮 إرسال معرفي لتفعيل VIP", callback_data="send_id")],
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
-        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")],
-        [InlineKeyboardButton("📊 حالتي", callback_data="my_status")]
+        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
     ]
-    if user_id == 7249021797:
-        keyboard.insert(0, [InlineKeyboardButton("📜 الأوامر", callback_data="show_commands")])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    welcome_message = "⚡️ هــــلا بـوحش التحميل الغامض ⚙️🖤"
+    welcome_message = (
+        "👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*\n\n"
+        "هل أنت مستعدّ لاختراق عوالم الفيديوهات؟ 🚀📅\n"
+        "📌 فقط أرسل الرابط، وسأقوم بالباقي...\n\n"
+        "🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻"
+    )
     await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
 
 async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -92,7 +107,7 @@ async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     text = (
         "💎 *معلومات اشتراك VIP:*\n\n"
-        "✅ تحميل بلا حدود فيديو باليوم\n"
+        "✅ تحميل حتى 100 فيديو باليوم\n"
         "❌ لا انتظار بين التحميلات\n"
         "⚡ أولوية في السرعة\n"
         "🔐 دعم الملفات الخاصة\n\n"
@@ -112,25 +127,6 @@ async def show_expiry(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"💎 صلاحية اشتراكك تنتهي في: `{expiry}`", parse_mode=ParseMode.MARKDOWN)
     else:
         await query.edit_message_text("❌ ليس لديك اشتراك VIP حاليًا.")
-
-async def my_status_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-
-    reset_daily_limits()
-    limit = DAILY_LIMIT_VIP if is_vip(user_id) else DAILY_LIMIT_FREE
-    user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
-    remaining = limit - user_data["count"]
-    
-    next_reset = datetime.combine(datetime.utcnow().date() + timedelta(days=1), datetime.min.time())
-
-    text = (
-        f"📊 *حالتك الحالية:*\n\n"
-        f"🔄 المتبقي من التحميل اليوم: `{remaining}` من `{limit}`\n"
-        f"⏳ يمكنك إعادة التحميل بعد: `{next_reset.strftime('%Y-%m-%d %H:%M')} UTC`\n"
-    )
-    await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN)
 
 async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -155,7 +151,7 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if "tiktok.com" in url:
-        await update.message.reply_text("⏳ جاري تحميل الفيديو...")
+        await update.message.reply_text(random.choice(weird_messages) + "\n⏳ جاري تحميل الفيديو...")
         ydl_opts = {'outtmpl': 'downloads/%(id)s.%(ext)s', 'format': 'mp4', 'quiet': True}
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -187,4 +183,47 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.remove(file_path)
         else:
             await update.message.reply_text("❌ لم يتم العثور على الملف بعد التحميل.")
-    except subprocess
+    except subprocess.CalledProcessError as e:
+        await update.message.reply_text(f"❌ خطأ أثناء التحميل: {str(e)}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطأ غير متوقع: {str(e)}")
+
+async def add_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        user_id = int(context.args[0])
+        days = int(context.args[1])
+        add_vip(user_id, days)
+        await update.message.reply_text(f"✅ تم إعطاء VIP للمستخدم {user_id} لمدة {days} يومًا")
+    except:
+        await update.message.reply_text("❌ الاستخدام الصحيح: /addvip [id] [days]")
+
+async def remove_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        user_id = int(context.args[0])
+        remove_vip(user_id)
+        await update.message.reply_text(f"❌ تم حذف VIP للمستخدم {user_id}")
+    except:
+        await update.message.reply_text("❌ الاستخدام الصحيح: /removevip [id]")
+
+async def vip_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    vips = list_vips()
+    if not vips:
+        await update.message.reply_text("❌ لا يوجد مستخدمين VIP")
+    else:
+        text = "\n".join([f"👤 {uid} - ينتهي بـ {exp}" for uid, exp in vips])
+        await update.message.reply_text(text)
+
+def main():
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("usage", usage))
+    app.add_handler(CommandHandler("addvip", add_vip_cmd))
+    app.add_handler(CommandHandler("removevip", remove_vip_cmd))
+    app.add_handler(CommandHandler("viplist", vip_list))
+    app.add_handler(CallbackQueryHandler(show_vip_info, pattern="vip_info"))
+    app.add_handler(CallbackQueryHandler(show_expiry, pattern="vip_expiry"))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
