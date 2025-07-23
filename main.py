@@ -82,6 +82,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("💎 معلومات VIP", callback_data="vip_info")],
         [InlineKeyboardButton("🕓 معلومات الاشتراك", callback_data="vip_expiry")],
+        [InlineKeyboardButton("🆔 معرفي", callback_data="get_id")],
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
         [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
     ]
@@ -127,6 +128,12 @@ async def show_expiry(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"💎 صلاحية اشتراكك تنتهي في: `{expiry}`", parse_mode=ParseMode.MARKDOWN)
     else:
         await query.edit_message_text("❌ ليس لديك اشتراك VIP حاليًا.")
+
+async def show_user_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    await query.edit_message_text(f"🆔 معرفك هو: `{user_id}`", parse_mode=ParseMode.MARKDOWN)
 
 async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -222,6 +229,7 @@ def main():
     app.add_handler(CommandHandler("viplist", vip_list))
     app.add_handler(CallbackQueryHandler(show_vip_info, pattern="vip_info"))
     app.add_handler(CallbackQueryHandler(show_expiry, pattern="vip_expiry"))
+    app.add_handler(CallbackQueryHandler(show_user_id, pattern="get_id"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
     app.run_polling()
 
