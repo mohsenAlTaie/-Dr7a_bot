@@ -82,20 +82,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("💎 معلومات VIP", callback_data="vip_info")],
         [InlineKeyboardButton("🕓 معلومات الاشتراك", callback_data="vip_expiry")],
-        [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
         [InlineKeyboardButton("📲 معرفي", callback_data="get_user_id")],
         [InlineKeyboardButton("📊 إحصائياتي", callback_data="my_stats")],
-        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
+        [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
+        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")],
+        [InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")]
     ]
+    if update.effective_user.id == 7249021797:
+        keyboard.append([InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")])
     reply_markup = InlineKeyboardMarkup(keyboard)
     welcome_message = (
-        "👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*\n\n"
-        "هل أنت مستعدّ لاختراق عوالم الفيديوهات؟ 🚀📅\n"
-        "📌 فقط أرسل الرابط، وسأقوم بالباقي...\n\n"
-        "🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻"
+    "👁✨ أهلاً بك في البُعد الآخر من التحميل! ✨👁\n"
+    "🚀 هل أنت مستعد لاختراق عوالم الفيديوهات؟\n"
+    "🔗 فقط أرسل الرابط، وسأقوم بالباقي!\n"
+    "🛠 تم بناء هذا البوت بعناية بواسطة محسن علي حسين 🎮💻"
     )
     await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-
 async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     reset_daily_limits()
@@ -259,6 +261,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "vip_info":
         await show_vip_info(update, context)
     elif query.data == "vip_expiry":
+    elif query.data == "admin_panel":
+        await show_admin_panel(update, context)
         await show_expiry(update, context)
 
 
@@ -271,7 +275,36 @@ def main():
     app.add_handler(CommandHandler("viplist", vip_list))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
+    logging.info("✅ البوت يعمل الآن وجاهز لاستقبال الأوامر.")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
+
+async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.from_user.id != 7249021797:
+        await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
+        return
+    elif query.data == "admin_panel":
+        if query.from_user.id != 7249021797:
+            await query.message.reply_text("❌ هذه الميزة متاحة فقط للإدارة.")
+            return
+        keyboard = [
+            [InlineKeyboardButton("➕ إضافة VIP", callback_data="cmd_addvip")],
+            [InlineKeyboardButton("🗑️ حذف VIP", callback_data="cmd_removevip")],
+            [InlineKeyboardButton("📋 قائمة VIP", callback_data="cmd_viplist")]
+        ]
+        await query.message.reply_text("⚙️ *لوحة التحكم الإدارية:*", parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    keyboard = [
+        [InlineKeyboardButton("✅ تفعيل VIP", callback_data="activate_vip"),
+         InlineKeyboardButton("❌ حذف VIP", callback_data="remove_vip")],
+        [InlineKeyboardButton("📋 عرض قائمة VIP", callback_data="list_vip")],
+        [InlineKeyboardButton("🚫 تعطيل التحميل", callback_data="pause_downloads")],
+        [InlineKeyboardButton("📢 إرسال تنبيه", callback_data="broadcast_alert")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text("⚙️ *لوحة التحكم الإدارية:*", reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
