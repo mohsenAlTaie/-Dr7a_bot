@@ -95,6 +95,12 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ فشل التحميل من TikTok:\n{str(e)}")
         return
 
+    # التحقق من روابط فيسبوك غير المباشرة
+    if "facebook.com" in url:
+        if "videos" not in url and "watch" not in url and "/story.php" not in url:
+            await update.message.reply_text("❌ الرابط غير مباشر.\nيرجى فتح الفيديو ونسخ رابطه الكامل من الشريط الأعلى.")
+            return
+
     # باقي المواقع
     await update.message.reply_text("📥 جاري تحميل الفيديو، يرجى الانتظار...")
 
