@@ -191,6 +191,8 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ خطأ غير متوقع: {str(e)}")
 
 async def add_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_user.id) != "7249021797":
+        return
 
     if update.effective_user.id != 7249021797:
         await update.message.reply_text("❌ هذا الأمر مخصص للإدارة فقط.")
@@ -205,6 +207,8 @@ async def add_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ الاستخدام الصحيح: /addvip [id] [days]")
 
 async def remove_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_user.id) != "7249021797":
+        return
 
     if update.effective_user.id != 7249021797:
         await update.message.reply_text("❌ هذا الأمر مخصص للإدارة فقط.")
@@ -218,6 +222,8 @@ async def remove_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ الاستخدام الصحيح: /removevip [id]")
 
 async def vip_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_user.id) != "7249021797":
+        return
 
     if update.effective_user.id != 7249021797:
         await update.message.reply_text("❌ هذا الأمر مخصص للإدارة فقط.")
