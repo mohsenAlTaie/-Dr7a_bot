@@ -6,7 +6,7 @@ import subprocess
 from datetime import datetime
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 import yt_dlp
 
 # إعداد اللوج
@@ -21,9 +21,6 @@ BOT_USERNAME = "Dr7a_bot"
 # إنشاء مجلد التحميل
 if not os.path.exists("downloads"):
     os.makedirs("downloads")
-
-# قائمة المستخدمين المميزين (VIP)
-VIP_USERS = [123456789, 987654321]  # ضع هنا آيدي المشتركين VIP
 
 # رسائل غريبة عشوائية للتيك توك
 weird_messages = [
@@ -46,7 +43,7 @@ user_timestamps = {}
 
 # عداد التحميلات اليومية
 daily_limits = {}
-DAILY_LIMIT = 30
+DAILY_LIMIT = 10
 
 def reset_daily_limits():
     current_date = datetime.utcnow().date()
@@ -57,6 +54,9 @@ def reset_daily_limits():
 # رسالة /start موحدة
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
+        [InlineKeyboardButton("📋 الأوامر", callback_data="commands")],
+        [InlineKeyboardButton("💎 معلومات VIP", callback_data="vip_info")],
+        [InlineKeyboardButton("💳 طرق الدفع", callback_data="payment_info")],
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
         [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")],
         [InlineKeyboardButton("💎 شراء VIP", url="https://t.me/K0_MG")]
@@ -68,10 +68,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "هل أنت مستعدّ لاختراق عوالم الفيديوهات من فيسبوك، يوتيوب، إنستغرام، وتيك توك؟ 🚀📥\n"
         "هنا حيث تنصهر الروابط وتولد الملفات! 🌐🔥\n\n"
         "📎 فقط أرسل الرابط، وسأقوم بالباقي... لا حاجة للشرح، فقط الثقة 💼🤖\n\n"
-        "💎 لرفع عدد التحميلات وفتح ميزات VIP يمكنك الدفع عبر:\n"
-        "- آسياسيل\n"
-        "- زين كاش\n"
-        "- ماستر كارد\n\n"
         "🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻"
     )
 
@@ -85,29 +81,66 @@ async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     remaining = DAILY_LIMIT - user_data["count"]
     await update.message.reply_text(f"📊 عدد التحميلات المتبقية اليوم: {remaining} من {DAILY_LIMIT}")
 
+# الرد على زر "الأوامر"
+async def show_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(
+        "📋 *قائمة الأوامر المتاحة:*\n"
+        "/start - بدء البوت من جديد\n"
+        "/usage - عرض عدد التحميلات المتبقية اليوم\n\n"
+        "🧾 أرسل رابط فيديو من TikTok, YouTube, Facebook أو Instagram وسأقوم بتحميله لك 💾",
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+# الرد على زر "معلومات VIP"
+async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(
+        "💎 *مميزات VIP:*\n"
+        "- تحميل غير محدود يوميًا\n"
+        "- أولوية في السرعة والسيرفر\n"
+        "- دعم فني خاص\n\n"
+        "🎁 السعر الشهري: 3,000 دينار فقط\n\n"
+        "للاشتراك أو الاستفسار، راسل المطور:\n"
+        "@K0_MG",
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+# الرد على زر "طرق الدفع"
+async def show_payment_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(
+        "💳 *طرق الدفع المتوفرة:*\n\n"
+        "- آسياسيل\n"
+        "- زين كاش\n"
+        "- ماستر كارد\n\n"
+        "للدفع والاستفسار راسل المطور:\n"
+        "@K0_MG",
+        parse_mode=ParseMode.MARKDOWN
+    )
+
 # الدالة الأساسية لتحليل وتحميل الفيديو
 async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     now = time.time()
     url = update.message.text.strip()
 
-    is_vip = user_id in VIP_USERS
+    # حماية من السبام
+    if user_id in user_timestamps and now - user_timestamps[user_id] < 10:
+        await update.message.reply_text("⏳ الرجاء الانتظار قليلاً قبل إرسال رابط جديد.")
+        return
+    user_timestamps[user_id] = now
 
-    # حماية من السبام (لغير VIP فقط)
-    if not is_vip:
-        if user_id in user_timestamps and now - user_timestamps[user_id] < 10:
-            await update.message.reply_text("⏳ الرجاء الانتظار قليلاً قبل إرسال رابط جديد.")
-            return
-        user_timestamps[user_id] = now
-
-    # التحقق من الحد اليومي (لغير VIP فقط)
-    if not is_vip:
-        reset_daily_limits()
-        user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
-        if user_data["count"] >= DAILY_LIMIT:
-            await update.message.reply_text("🚫 وصلت للحد الأقصى من التحميلات اليومية (30). الرجاء المحاولة غدًا أو الترقية إلى VIP.")
-            return
-        daily_limits[user_id] = {"count": user_data["count"] + 1, "date": datetime.utcnow().date()}
+    # التحقق من الحد اليومي
+    reset_daily_limits()
+    user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
+    if user_data["count"] >= DAILY_LIMIT:
+        await update.message.reply_text("🚫 وصلت للحد الأقصى من التحميلات اليومية (10). الرجاء المحاولة غدًا أو الترقية إلى VIP.")
+        return
+    daily_limits[user_id] = {"count": user_data["count"] + 1, "date": datetime.utcnow().date()}
 
     # التحقق من الرابط
     if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
@@ -167,6 +200,9 @@ def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("usage", usage))
+    app.add_handler(CallbackQueryHandler(show_commands, pattern="commands"))
+    app.add_handler(CallbackQueryHandler(show_vip_info, pattern="vip_info"))
+    app.add_handler(CallbackQueryHandler(show_payment_info, pattern="payment_info"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
     app.run_polling()
 
