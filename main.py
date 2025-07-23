@@ -262,23 +262,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "vip_expiry":
         await show_expiry(update, context)
     elif query.data == "admin_panel":
-    await show_admin_panel(update, context)
-    elif query.data == "cmd_addvip":
-        await query.message.reply_text("📥 أرسل معرف المستخدم وعدد الأيام هكذا:\n`123456789 30`", parse_mode=ParseMode.MARKDOWN)
-        context.user_data["admin_action"] = "add_vip"
-        return
-    elif query.data == "cmd_removevip":
-        await query.message.reply_text("📤 أرسل معرف المستخدم لحذفه من قائمة VIP")
-        context.user_data["admin_action"] = "remove_vip"
-        return
-    elif query.data == "cmd_viplist":
-        vips = list_vips()
-        if not vips:
-            await query.message.reply_text("❌ لا يوجد مستخدمين VIP حالياً.")
-        else:
-            text = "\n".join([f"👤 {uid} - ينتهي بـ {exp}" for uid, exp in vips])
-            await query.message.reply_text(text)
-        return
         if query.from_user.id != 7249021797:
             await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
             return
@@ -303,7 +286,6 @@ def main():
     app.add_handler(CommandHandler("viplist", vip_list))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
-    app.add_handler(MessageHandler(filters.TEXT & filters.User(user_id=7249021797), handle_admin_reply))
     logging.info("✅ البوت يعمل الآن وجاهز لاستقبال الأوامر.")
     app.run_polling()
 
@@ -325,27 +307,3 @@ async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.message.reply_text("⚙️ *لوحة التحكم الإدارية:*", reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-
-
-async def handle_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != 7249021797:
-        return
-
-    action = context.user_data.get("admin_action")
-    if action == "add_vip":
-        try:
-            user_id, days = map(int, update.message.text.strip().split())
-            add_vip(user_id, days)
-            await update.message.reply_text(f"✅ تم إعطاء VIP للمستخدم {user_id} لمدة {days} يومًا")
-        except:
-            await update.message.reply_text("❌ تأكد من كتابة المعرف وعدد الأيام بشكل صحيح.")
-        context.user_data["admin_action"] = None
-
-    elif action == "remove_vip":
-        try:
-            user_id = int(update.message.text.strip())
-            remove_vip(user_id)
-            await update.message.reply_text(f"🗑️ تم حذف VIP للمستخدم {user_id}")
-        except:
-            await update.message.reply_text("❌ تأكد من كتابة المعرف بشكل صحيح.")
-        context.user_data["admin_action"] = None
