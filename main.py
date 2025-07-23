@@ -76,10 +76,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id == 7249021797:
         keyboard.insert(0, [InlineKeyboardButton("📜 الأوامر", callback_data="show_commands")])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    welcome_message = "⚡️ *مرحباً بك في مختبر الظلال الرقمية* 💠🚀\n_حيث تبدأ الفيديوهات رحلتها عبر الزمن!_"
-    
+    welcome_message = "⚡️ هــــلا بـوحش التحميل الغامض ⚙️🖤"
     await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+
 async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     reset_daily_limits()
@@ -93,7 +92,7 @@ async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     text = (
         "💎 *معلومات اشتراك VIP:*\n\n"
-        "✅ تحميل فيديوهات بلا حدود\n"
+        "✅ تحميل بلا حدود فيديو باليوم\n"
         "❌ لا انتظار بين التحميلات\n"
         "⚡ أولوية في السرعة\n"
         "🔐 دعم الملفات الخاصة\n\n"
