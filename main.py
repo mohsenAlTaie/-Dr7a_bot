@@ -289,13 +289,9 @@ async def show_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🚫 هذا الخيار مخصص فقط للأدمن.")
         return
     text = (
-        "🛠️ *قائمة أوامر الأدمن:*
-
-"
-        "/addvip [id] [days] — إضافة VIP
-"
-        "/removevip [id] — إزالة VIP
-"
+        "🛠️ *قائمة أوامر الأدمن:*\n\n"
+        "/addvip [id] [days] — إضافة VIP\n"
+        "/removevip [id] — إزالة VIP\n"
         "/viplist — عرض قائمة VIP"
     )
     await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN)
