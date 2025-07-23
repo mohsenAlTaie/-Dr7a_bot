@@ -262,16 +262,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "vip_expiry":
         await show_expiry(update, context)
     elif query.data == "admin_panel":
-        if query.from_user.id != 7249021797:
-            await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
-            return
-        keyboard = [
-            [InlineKeyboardButton("➕ إضافة VIP", callback_data="cmd_addvip")],
-            [InlineKeyboardButton("🗑️ حذف VIP", callback_data="cmd_removevip")],
-            [InlineKeyboardButton("📋 قائمة VIP", callback_data="cmd_viplist")]
-        ]
-        await query.message.reply_text("⚙️ *لوحة التحكم الإدارية:*", parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(keyboard))
-        return
         await show_admin_panel(update, context)
         await show_admin_panel(update, context)
         await show_expiry(update, context)
