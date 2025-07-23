@@ -1,213 +1,87 @@
-import os
-import random
-import logging
-import time
-import subprocess
-from datetime import datetime
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
-import yt_dlp
+import os import random import logging import time import subprocess from datetime import datetime from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton from telegram.constants import ParseMode from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes import yt_dlp
 
-# إعداد اللوج
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
+إعداد اللوج
 
-# توكن البوت الموحد
-TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
-BOT_USERNAME = "Dr7a_bot"
+logging.basicConfig( format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO )
 
-# إنشاء مجلد التحميل
-if not os.path.exists("downloads"):
-    os.makedirs("downloads")
+توكن البوت
 
-# رسائل غريبة عشوائية للتيك توك
-weird_messages = [
-    "👽 جاري التواصل مع كائنات TikTok الفضائية...",
-    "🔮 فتح بوابة الزمن الرقمي...",
-    "🧪 خلط فيديوهات TikTok في المختبر السري...",
-    "🐍 استدعاء تنين TikTok لتحميل الفيديو...",
-    "📡 التقاط إشارة من سيرفرات الصين...",
-    "🚀 تحميل الفيديو بسرعة تتجاوز سرعة الضوء... تقريبًا",
-    "🧠 استخدام الذكاء الاصطناعي لفك شيفرة الرابط...",
-    "💿 إدخال قرص TikTok داخل مشغل VHS الفضائي...",
-    "👾 استدعاء روبوت التحميل من بعد آخر...",
-    "🍕 رش جبنة على الرابط للحصول على نكهة أفضل للفيديو...",
-    "🎩 تحويل الرابط إلى أرنب وسحبه من القبعة...",
-    "🐢 تحميل الفيديو... بسرعة سلحفاة نينجا 🐢 (امزح، هو سريع!)"
-]
+TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU" BOT_USERNAME = "Dr7a_bot"
 
-# نظام حماية من السبام
+إنشاء مجلد التحميل
+
+if not os.path.exists("downloads"): os.makedirs("downloads")
+
+رسائل غريبة عشوائية للتيك توك
+
+weird_messages = [ "👽 جاري التواصل مع كائنات TikTok الفضائية...", "🔮 فتح بوابة الزمن الرقمي...", "🧪 خلط فيديوهات TikTok في المختبر السري...", "🐍 استدعاء تنين TikTok لتحميل الفيديو...", "📡 التقاط إشارة من سيرفرات الصين...", "🚀 تحميل الفيديو بسرعة تتجاوز سرعة الضوء... تقريبًا", "🧠 استخدام الذكاء الاصطناعي لفك شيفرة الرابط...", "📏 إدخال قرص TikTok داخل مشغل VHS الفضائي...", "👾 استدعاء روبوت التحميل من بعد آخر...", "🍕 رش جبنة على الرابط للحصول على نكهة أفضل للفيديو...", "🎩 تحويل الرابط إلى أرنب وسحبه من القبعة...", "🐢 تحميل الفيديو... بسرعة سلحفاة نينجا 🐢 (امزح، هو سريع!)" ]
+
+نظام حماية من السبام
+
 user_timestamps = {}
 
-# عداد التحميلات اليومية
-daily_limits = {}
-DAILY_LIMIT = 10
+عداد التحميلات اليومية
 
-def reset_daily_limits():
-    current_date = datetime.utcnow().date()
-    for user_id in list(daily_limits):
-        if daily_limits[user_id]["date"] != current_date:
-            daily_limits[user_id] = {"count": 0, "date": current_date}
+daily_limits = {} DAILY_LIMIT = 10 vip_users_file = "vip_users.txt"
 
-# رسالة /start موحدة
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("📋 الأوامر", callback_data="commands")],
-        [InlineKeyboardButton("💎 معلومات VIP", callback_data="vip_info")],
-        [InlineKeyboardButton("💳 طرق الدفع", callback_data="payment_info")],
-        [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
-        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+إعادة تعيين الحد اليومي
 
-    welcome_message = (
-        "👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*\n\n"
-        "هل أنت مستعدّ لاختراق عوالم الفيديوهات من فيسبوك، يوتيوب، إنستغرام، وتيك توك؟ 🚀📥\n"
-        "هنا حيث تنصهر الروابط وتولد الملفات! 🌐🔥\n\n"
-        "📎 فقط أرسل الرابط، وسأقوم بالباقي... لا حاجة للشرح، فقط الثقة 💼🤖\n\n"
-        "🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻"
-    )
+def reset_daily_limits(): current_date = datetime.utcnow().date() for user_id in list(daily_limits): if daily_limits[user_id]["date"] != current_date: daily_limits[user_id] = {"count": 0, "date": current_date}
 
-    await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+التحقق من صلاحية VIP
 
-# أمر عرض عدد التحميلات المتبقية
-async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    reset_daily_limits()
-    user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
-    remaining = DAILY_LIMIT - user_data["count"]
-    await update.message.reply_text(f"📊 عدد التحميلات المتبقية اليوم: {remaining} من {DAILY_LIMIT}")
+def is_vip(user_id): if not os.path.exists(vip_users_file): return False with open(vip_users_file, "r") as f: return str(user_id) in f.read()
 
-# الرد على زر "الأوامر"
-async def show_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+رسالة /start
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE): keyboard = [ [InlineKeyboardButton("📋 الأوامر", callback_data="commands")], [InlineKeyboardButton("🔑 تفعيل VIP", callback_data="activate_vip")], [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")], [InlineKeyboardButton("👨‍💻 المطور", url="https://t.me/K0_MG")], [InlineKeyboardButton("💳 طرق الدفع", callback_data="vip_info")], ] reply_markup = InlineKeyboardMarkup(keyboard)
+
+welcome_message = (
+    "👁‍✨ *أهلاً بك في البُعد الآخر من التحميل!*\n\n"
+    "هل أنت مستعدّ لاختراق عوالم الفيديوهات من فيسبوك، يوتيوب، إنستغرام، وتيك توك؟ 🚀📅\n"
+    "هنا حيث تنصهر الروابط وتولد الملفات! 🌐🔥"
+)
+await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+
+عرض عدد التحميلات المتبقية
+
+async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE): user_id = update.effective_user.id reset_daily_limits() user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()}) remaining = DAILY_LIMIT - user_data["count"] await update.message.reply_text(f"📊 عدد التحميلات المتبقية اليوم: {remaining} من {DAILY_LIMIT}")
+
+الرد على الأزرار
+
+async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE): query = update.callback_query await query.answer() data = query.data
+
+if data == "commands":
     await query.edit_message_text(
-        "📋 *قائمة الأوامر المتاحة:*\n"
-        "/start - بدء البوت من جديد\n"
-        "/usage - عرض عدد التحميلات المتبقية اليوم\n\n"
-        "🧾 أرسل رابط فيديو من TikTok, YouTube, Facebook أو Instagram وسأقوم بتحميله لك 💾",
+        "📋 *قائمة الأوامر:*\n"
+        "/start - بدء البوت\n"
+        "/usage - عرض التحميلات المتبقية\n\n"
+        "🗒 أرسل رابط من TikTok, YouTube, Facebook أو Instagram وسنقوم بتحميله لك",
         parse_mode=ParseMode.MARKDOWN
     )
-
-# الرد على زر "معلومات VIP"
-async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+elif data == "vip_info":
     await query.edit_message_text(
-        "💎 *مميزات الاشتراك في VIP:*\n\n"
-        "✅ تحميل غير محدود يوميًا\n"
-        "⚡ سرعة تحميل أعلى\n"
-        "⏱️ لا يوجد انتظار بين الروابط\n"
-        "🚀 أولوية في السيرفر والمعالجة\n"
-        "🧑‍💻 دعم فني مباشر من المطور\n\n"
-        "🎁 السعر الشهري: فقط 3,000 دينار عراقي\n"
-        "للاشتراك اضغط على زر *💳 طرق الدفع*.",
+        "💳 *معلومات اشتراك VIP:*\n\n"
+        "- رفع الحد اليومي إلى عدد غير محدود\n"
+        "- سرعة تحميل أفضل\n"
+        "- دعم المطور وميزات أضافية\n\n"
+        "💳 طرق الدفع:\n- آسياسيل\n- ماستر كارد\n- زين كاش\n\n"
+        "✨ للاشتراك اضغط هنا وتواصل مع المطور: @K0_MG",
         parse_mode=ParseMode.MARKDOWN
     )
-
-# الرد على زر "طرق الدفع"
-async def show_payment_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    keyboard = [
-        [InlineKeyboardButton("💬 تواصل مع المطور للاشتراك", url="https://t.me/K0_MG")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(
-        "💳 *طرق الدفع المتوفرة:*\n\n"
-        "- آسياسيل\n"
-        "- زين كاش\n"
-        "- ماستر كارد\n",
-        parse_mode=ParseMode.MARKDOWN,
-        reply_markup=reply_markup
-    )
-
-# الدالة الأساسية لتحليل وتحميل الفيديو
-async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
+elif data == "activate_vip":
     user_id = update.effective_user.id
-    now = time.time()
-    url = update.message.text.strip()
+    if is_vip(user_id):
+        await query.edit_message_text("✅ تم تفعيل VIP لحسابك. ستحصل على مميزات التحميل غير المحدودة!")
+        daily_limits[user_id] = {"count": 0, "date": datetime.utcnow().date()}
+    else:
+        await query.edit_message_text("❌ لست مشتركًا في VIP. يرجى التواصل مع المطور @K0_MG للاشتراك.")
 
-    # حماية من السبام
-    if user_id in user_timestamps and now - user_timestamps[user_id] < 10:
-        await update.message.reply_text("⏳ الرجاء الانتظار قليلاً قبل إرسال رابط جديد.")
-        return
-    user_timestamps[user_id] = now
+باقي كود التحميل كما هو (handle_video، وغيرها) بدون تغيير
 
-    # التحقق من الحد اليومي
-    reset_daily_limits()
-    user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
-    if user_data["count"] >= DAILY_LIMIT:
-        await update.message.reply_text("🚫 وصلت للحد الأقصى من التحميلات اليومية (10). الرجاء المحاولة غدًا أو الترقية إلى VIP.")
-        return
-    daily_limits[user_id] = {"count": user_data["count"] + 1, "date": datetime.utcnow().date()}
+تشغيل البوت
 
-    # التحقق من الرابط
-    if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
-        await update.message.reply_text("❌ هذا الرابط غير مدعوم. أرسل رابط من YouTube أو Facebook أو Instagram أو TikTok.")
-        return
+def main(): app = Application.builder().token(TOKEN).build() app.add_handler(CommandHandler("start", start)) app.add_handler(CommandHandler("usage", usage)) app.add_handler(CallbackQueryHandler(handle_buttons)) # إضافة باقي الهاندلرات هنا... app.run_polling()
 
-    # TikTok برسالة خاصة
-    if "tiktok.com" in url:
-        loading_msg = random.choice(weird_messages)
-        await update.message.reply_text(f"{loading_msg}\n⏳ جاري تحميل الفيديو...")
-        ydl_opts = {
-            'outtmpl': 'downloads/%(id)s.%(ext)s',
-            'format': 'mp4',
-            'quiet': True,
-        }
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                file_path = ydl.prepare_filename(info)
+if name == "main": main()
 
-            await update.message.reply_video(video=open(file_path, 'rb'))
-            os.remove(file_path)
-        except Exception as e:
-            await update.message.reply_text(f"❌ فشل التحميل من TikTok:\n{str(e)}")
-        return
-
-    # باقي المواقع
-    await update.message.reply_text("📥 جاري تحميل الفيديو، يرجى الانتظار...")
-
-    try:
-        file_path = "downloads/video.mp4"
-        command = ["yt-dlp", "-f", "mp4"]
-
-        # كوكيز المواقع
-        if "facebook.com" in url or "fb.watch" in url:
-            command += ["--cookies", "facebook_cookies.txt"]
-        elif "youtube.com" in url or "youtu.be" in url:
-            command += ["--cookies", "youtube_cookies.txt"]
-        elif "instagram.com" in url:
-            command += ["--cookies", "instagram_cookies.txt"]
-
-        command += ["-o", file_path, url]
-        subprocess.run(command, check=True)
-
-        if os.path.exists(file_path):
-            await update.message.reply_video(video=open(file_path, "rb"))
-            os.remove(file_path)
-        else:
-            await update.message.reply_text("❌ لم يتم العثور على الملف بعد التحميل.")
-    except subprocess.CalledProcessError as e:
-        await update.message.reply_text(f"❌ خطأ أثناء تحميل الفيديو:\n{str(e)}")
-    except Exception as e:
-        await update.message.reply_text(f"❌ خطأ غير متوقع:\n{str(e)}")
-
-# تشغيل البوت
-def main():
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("usage", usage))
-    app.add_handler(CallbackQueryHandler(show_commands, pattern="commands"))
-    app.add_handler(CallbackQueryHandler(show_vip_info, pattern="vip_info"))
-    app.add_handler(CallbackQueryHandler(show_payment_info, pattern="payment_info"))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
