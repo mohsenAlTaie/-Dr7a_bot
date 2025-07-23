@@ -362,8 +362,7 @@ ADD_VIP_ID, ADD_VIP_DAYS, REMOVE_VIP_ID = range(3)
         if not vips:
             await query.message.reply_text("❌ لا يوجد مستخدمين VIP")
         else:
-            text = "
-".join([f"👤 {uid} - ينتهي في: {exp}" for uid, exp in vips])
+            text = "\n".join([f"👤 {uid} - ينتهي في: {exp}" for uid, exp in vips])
             await query.message.reply_text(text)
     return ConversationHandler.END
 async def receive_vip_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
