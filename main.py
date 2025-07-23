@@ -20,7 +20,7 @@ BOT_USERNAME = "Dr7a_bot"
 if not os.path.exists("downloads"):
     os.makedirs("downloads")
 
-# إعداد قاعدة بيانات VIP
+# قاعدة بيانات VIP
 conn = sqlite3.connect("vip_users.db", check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS vip_users (user_id INTEGER PRIMARY KEY, expires_at TEXT)''')
@@ -33,6 +33,11 @@ def is_vip(user_id: int):
         if datetime.strptime(row[0], "%Y-%m-%d") >= datetime.utcnow():
             return True
     return False
+
+def get_vip_expiry(user_id: int):
+    c.execute("SELECT expires_at FROM vip_users WHERE user_id = ?", (user_id,))
+    row = c.fetchone()
+    return row[0] if row else None
 
 def add_vip(user_id: int, days: int):
     expires_at = datetime.utcnow() + timedelta(days=days)
@@ -75,8 +80,8 @@ def reset_daily_limits():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("📋 الأوامر", callback_data="commands")],
         [InlineKeyboardButton("💎 معلومات VIP", callback_data="vip_info")],
+        [InlineKeyboardButton("🕓 معلومات الاشتراك", callback_data="vip_expiry")],
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
         [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
     ]
@@ -97,21 +102,6 @@ async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     remaining = limit - user_data["count"]
     await update.message.reply_text(f"📊 عدد التحميلات المتبقية اليوم: {remaining} من {limit}")
 
-async def show_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
-        "📋 *قائمة الأوامر المتاحة:*\n"
-        "/start - بدء البوت من جديد\n"
-        "/usage - عرض عدد التحميلات المتبقية\n"
-        "/myid - عرض ID الخاص بك\n"
-        "/addvip [id] [days] - تفعيل VIP\n"
-        "/removevip [id] - حذف VIP\n"
-        "/viplist - قائمة VIP\n\n"
-        "📜 أرسل رابط فيديو من TikTok, YouTube, Facebook أو Instagram وسأقوم بتحميله لك 📀",
-        parse_mode=ParseMode.MARKDOWN
-    )
-
 async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -127,6 +117,16 @@ async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     keyboard = [[InlineKeyboardButton("💬 تواصل مع المطور", url="https://t.me/K0_MG")]]
     await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def show_expiry(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    expiry = get_vip_expiry(user_id)
+    if expiry:
+        await query.edit_message_text(f"💎 صلاحية اشتراكك تنتهي في: `{expiry}`", parse_mode=ParseMode.MARKDOWN)
+    else:
+        await query.edit_message_text("❌ ليس لديك اشتراك VIP حاليًا.")
 
 async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -213,10 +213,6 @@ async def vip_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = "\n".join([f"👤 {uid} - ينتهي بـ {exp}" for uid, exp in vips])
         await update.message.reply_text(text)
 
-async def my_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    await update.message.reply_text(f"🆔 ID الخاص بك هو:\n`{user_id}`", parse_mode=ParseMode.MARKDOWN)
-
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -224,9 +220,8 @@ def main():
     app.add_handler(CommandHandler("addvip", add_vip_cmd))
     app.add_handler(CommandHandler("removevip", remove_vip_cmd))
     app.add_handler(CommandHandler("viplist", vip_list))
-    app.add_handler(CommandHandler("myid", my_id))
-    app.add_handler(CallbackQueryHandler(show_commands, pattern="commands"))
     app.add_handler(CallbackQueryHandler(show_vip_info, pattern="vip_info"))
+    app.add_handler(CallbackQueryHandler(show_expiry, pattern="vip_expiry"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
     app.run_polling()
 
