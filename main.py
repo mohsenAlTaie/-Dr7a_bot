@@ -22,6 +22,9 @@ BOT_USERNAME = "Dr7a_bot"
 if not os.path.exists("downloads"):
     os.makedirs("downloads")
 
+# قائمة المستخدمين المميزين (VIP)
+VIP_USERS = [123456789, 987654321]  # ضع هنا آيدي المشتركين VIP
+
 # رسائل غريبة عشوائية للتيك توك
 weird_messages = [
     "👽 جاري التواصل مع كائنات TikTok الفضائية...",
@@ -40,9 +43,6 @@ weird_messages = [
 
 # نظام حماية من السبام
 user_timestamps = {}
-
-# VIP Users
-VIP_USERS = [123456789]  # حط الآيدي الخاص بيك أو بأي مستخدم VIP هنا
 
 # عداد التحميلات اليومية
 daily_limits = {}
@@ -91,14 +91,17 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = time.time()
     url = update.message.text.strip()
 
-    # حماية من السبام (لغير VIP)
-    if user_id not in VIP_USERS:
+    is_vip = user_id in VIP_USERS
+
+    # حماية من السبام (لغير VIP فقط)
+    if not is_vip:
         if user_id in user_timestamps and now - user_timestamps[user_id] < 10:
             await update.message.reply_text("⏳ الرجاء الانتظار قليلاً قبل إرسال رابط جديد.")
             return
         user_timestamps[user_id] = now
 
-        # التحقق من الحد اليومي
+    # التحقق من الحد اليومي (لغير VIP فقط)
+    if not is_vip:
         reset_daily_limits()
         user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
         if user_data["count"] >= DAILY_LIMIT:
