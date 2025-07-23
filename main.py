@@ -76,8 +76,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id == 7249021797:
         keyboard.insert(0, [InlineKeyboardButton("📜 الأوامر", callback_data="show_commands")])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    welcome_message = "⚡️ مرحباً بك في مختبر الظلال الرقمية 💠🚀
-حيث تبدأ الفيديوهات رحلتها عبر الزمن!"
+    welcome_message = "⚡️ مرحباً بك في مختبر الظلال الرقمية 💠🚀\nحيث تبدأ الفيديوهات رحلتها عبر الزمن!"
     await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
 
 async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
