@@ -262,6 +262,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "vip_expiry":
         await show_expiry(update, context)
     elif query.data == "admin_panel":
+    await show_admin_panel(update, context)
     elif query.data == "cmd_addvip":
         await query.message.reply_text("📥 أرسل معرف المستخدم وعدد الأيام هكذا:\n`123456789 30`", parse_mode=ParseMode.MARKDOWN)
         context.user_data["admin_action"] = "add_vip"
