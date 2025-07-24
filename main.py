@@ -27,7 +27,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS vip_users (user_id INTEGER PRIMARY KEY, 
 conn.commit()
 
 def is_vip(user_id: int):
-    c.execute("SELECT expires_at FROM vip_users WHERE user_id = ?", (user_id,))
+        c.execute("SELECT expires_at FROM vip_users WHERE user_id = ?", (user_id,))
     row = c.fetchone()
     if row:
         if datetime.strptime(row[0], "%Y-%m-%d") >= datetime.utcnow():
@@ -311,13 +311,17 @@ async def receive_vip_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
 async def receive_vip_days(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
         days = int(update.message.text.strip())
         user_id = context.user_data.get("vip_user_id")
         await update.message.reply_text(f"✅ تم إعطاء VIP للمستخدم {user_id} لمدة {days} يومًا.")
+    except:
         await update.message.reply_text("❌ عدد أيام غير صالح.")
 
 async def receive_remove_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await update.message.reply_text(f"🗑️ تم حذف VIP للمستخدم {user_id}.")
+    try:
+        user_id = context.user_data.get("vip_user_id")
+    except:
         await update.message.reply_text("❌ معرف غير صالح.")
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -334,5 +338,4 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         fallbacks=[CommandHandler("cancel", cancel)],
 
     app.add_handler(conv_handler)
-
 
