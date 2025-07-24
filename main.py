@@ -289,7 +289,6 @@ elif query.data == "cmd_viplist":
     else:
         text = "\n".join([f"👤 {uid} - ينتهي بـ {exp}" for uid, exp in vips])
         await query.message.reply_text(text)
-
 elif query.data == "admin_panel":
         if query.from_user.id != 7249021797:
             await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
