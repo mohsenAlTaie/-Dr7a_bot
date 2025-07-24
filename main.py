@@ -11,7 +11,6 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 
 import yt_dlp
 
-# إعداد اللوج
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -22,7 +21,6 @@ BOT_USERNAME = "Dr7a_bot"
 if not os.path.exists("downloads"):
     os.makedirs("downloads")
 
-# قاعدة بيانات VIP
 DB_FILE = "vip_users.db"
 
 def init_db():
@@ -64,27 +62,36 @@ def is_vip(user_id):
 ADMIN_ID = 7249021797
 user_timestamps = {}
 weird_messages = [
-    "جاري التواصل مع كائنات TikTok الفضائية...",
-    "فتح بوابة الزمن الرقمي...",
-    "خلط فيديوهات TikTok في المختبر السري...",
-    "استدعاء تنين TikTok لتحميل الفيديو...",
-    "التقاط إشارة من سيرفرات الصين...",
-    "تحميل الفيديو بسرعة تتجاوز سرعة الضوء... تقريبًا"
+    "🚀 جاري التواصل مع كائنات TikTok الفضائية...",
+    "🔮 فتح بوابة الزمن الرقمي...",
+    "🧪 خلط فيديوهات TikTok في المختبر السري...",
+    "🐉 استدعاء تنين TikTok لتحميل الفيديو...",
+    "📡 التقاط إشارة من سيرفرات الصين...",
+    "⚡ تحميل الفيديو بسرعة تتجاوز سرعة الضوء... تقريبًا"
 ]
 
-# رسالة /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
-        [InlineKeyboardButton("المطور", url="https://t.me/K0_MG")],
-        [InlineKeyboardButton("لوحة التحكم", callback_data="admin_panel")] if update.effective_user.id == ADMIN_ID else []
+        [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
+        [InlineKeyboardButton("👨‍💻 المطور", url="https://t.me/K0_MG")],
+        [InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")] if update.effective_user.id == ADMIN_ID else []
     ]
-    await update.message.reply_text(
-        "أرسل رابط الفيديو للتحميل أو استخدم لوحة التحكم إذا كنت مشرفاً.",
-        reply_markup=InlineKeyboardMarkup([row for row in keyboard if row])
-    )
+    text = "👋 مرحباً بك في بوت تحميل الفيديوهات المدعوم للمشتركين بنظام VIP.
 
-# التحكم الإداري
+📥 أرسل رابط من TikTok أو YouTube أو Facebook أو Instagram.
+"
+
+    if is_vip(update.effective_user.id):
+        expiry = get_vip_expiry(update.effective_user.id)
+        date_str = time.strftime("%Y-%m-%d", time.localtime(expiry))
+        text += f"
+✅ اشتراكك مفعل حتى: {date_str} 🎫"
+    else:
+        text += "
+❌ حسابك غير مفعل. يرجى الاشتراك عبر المطور."
+
+    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup([row for row in keyboard if row]), parse_mode=ParseMode.HTML)
+
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -95,26 +102,26 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     if data == "admin_panel":
         keyboard = [
-            [InlineKeyboardButton("إضافة VIP", callback_data="add_vip")],
-            [InlineKeyboardButton("حذف VIP", callback_data="remove_vip")],
-            [InlineKeyboardButton("قائمة VIP", callback_data="list_vip")],
-            [InlineKeyboardButton("معرف المستخدم", callback_data="show_userid")]
+            [InlineKeyboardButton("➕ إضافة VIP", callback_data="add_vip")],
+            [InlineKeyboardButton("🗑️ حذف VIP", callback_data="remove_vip")],
+            [InlineKeyboardButton("📋 قائمة VIP", callback_data="list_vip")],
+            [InlineKeyboardButton("🪪 معرف المستخدم", callback_data="show_userid")]
         ]
-        await query.edit_message_text("لوحة التحكم:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.edit_message_text("⚙️ لوحة تحكم الأدمن:", reply_markup=InlineKeyboardMarkup(keyboard))
     elif data == "add_vip":
         context.user_data["action"] = "add_vip"
-        await query.edit_message_text("أرسل معرف المستخدم لإضافته كـ VIP.")
+        await query.edit_message_text("✍️ أرسل معرف المستخدم لإضافته كـ VIP.")
     elif data == "remove_vip":
         context.user_data["action"] = "remove_vip"
-        await query.edit_message_text("أرسل معرف المستخدم لحذفه من VIP.")
+        await query.edit_message_text("✍️ أرسل معرف المستخدم لحذفه من VIP.")
     elif data == "list_vip":
         vips = list_vips()
-        text = "\n".join([f"{uid} - ينتهي: {time.strftime('%Y-%m-%d', time.localtime(exp))}" for uid, exp in vips]) or "لا يوجد مشتركين VIP"
-        await query.edit_message_text(f"قائمة VIP:\n{text}")
+        text = "\n".join([f"{uid} - ينتهي: {time.strftime('%Y-%m-%d', time.localtime(exp))}" for uid, exp in vips]) or "❌ لا يوجد مشتركين حالياً."
+        await query.edit_message_text(f"📋 قائمة VIP:
+{text}")
     elif data == "show_userid":
-        await query.edit_message_text(f"معرفك: `{user_id}`", parse_mode=ParseMode.MARKDOWN)
+        await query.edit_message_text(f"🪪 معرفك: `{user_id}`", parse_mode=ParseMode.MARKDOWN)
 
-# استقبال المعرف للإضافة/الحذف
 async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id != ADMIN_ID:
@@ -127,34 +134,34 @@ async def handle_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
         target_id = int(update.message.text.strip())
         if action == "add_vip":
             add_vip(target_id)
-            await update.message.reply_text("تمت إضافة المستخدم إلى VIP.")
+            await update.message.reply_text("✅ تم إضافة المستخدم بنجاح إلى VIP.")
         elif action == "remove_vip":
             remove_vip(target_id)
-            await update.message.reply_text("تم حذف المستخدم من VIP.")
+            await update.message.reply_text("🗑️ تم حذف المستخدم من VIP.")
     except:
-        await update.message.reply_text("حدث خطأ، تأكد من المعرف الصحيح.")
+        await update.message.reply_text("⚠️ تأكد من كتابة المعرف بشكل صحيح.")
     context.user_data["action"] = None
 
-# تحميل الفيديو
 async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if not is_vip(user_id) and user_id != ADMIN_ID:
-        await update.message.reply_text("هذا البوت مخصص للمشتركين فقط. راسل المطور للاشتراك.")
+        await update.message.reply_text("🔒 هذا البوت مخصص للمشتركين فقط. راسل المطور للاشتراك.")
         return
 
     now = time.time()
     url = update.message.text.strip()
     if user_id in user_timestamps and now - user_timestamps[user_id] < 10:
-        await update.message.reply_text("يرجى الانتظار قليلاً قبل إرسال رابط جديد.")
+        await update.message.reply_text("⏳ يرجى الانتظار قليلاً قبل إرسال رابط جديد.")
         return
     user_timestamps[user_id] = now
 
     if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "tiktok.com"]):
-        await update.message.reply_text("الرابط غير مدعوم حالياً.")
+        await update.message.reply_text("❌ الرابط غير مدعوم حالياً.")
         return
 
     if "tiktok.com" in url:
-        await update.message.reply_text(f"{random.choice(weird_messages)}\nجاري التحميل...")
+        await update.message.reply_text(f"{random.choice(weird_messages)}
+⏳ جاري التحميل...")
         ydl_opts = {'outtmpl': 'downloads/%(id)s.%(ext)s', 'format': 'mp4', 'quiet': True}
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -163,10 +170,11 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_video(video=open(file_path, 'rb'))
             os.remove(file_path)
         except Exception as e:
-            await update.message.reply_text(f"فشل التحميل من TikTok:\n{str(e)}")
+            await update.message.reply_text(f"❌ فشل التحميل:
+{str(e)}")
         return
 
-    await update.message.reply_text("جاري تحميل الفيديو...")
+    await update.message.reply_text("📥 جاري تحميل الفيديو...")
     try:
         file_path = "downloads/video.mp4"
         subprocess.run(["yt-dlp", "-f", "mp4", "-o", file_path, url], check=True)
@@ -174,11 +182,11 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_video(video=open(file_path, "rb"))
             os.remove(file_path)
         else:
-            await update.message.reply_text("لم يتم العثور على الملف.")
+            await update.message.reply_text("❌ لم يتم العثور على الملف.")
     except Exception as e:
-        await update.message.reply_text(f"حدث خطأ:\n{str(e)}")
+        await update.message.reply_text(f"⚠️ حدث خطأ:
+{str(e)}")
 
-# تشغيل البوت
 def main():
     init_db()
     app = Application.builder().token(TOKEN).build()
