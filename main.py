@@ -1,3 +1,4 @@
+
 import os
 import random
 import logging
@@ -54,10 +55,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        "👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*
+        """👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*
 
-"
-        "أرسل الرابط الآن لتحميل الفيديو، أو استخدم الخيارات أدناه.",
+أرسل الرابط الآن لتحميل الفيديو، أو استخدم الخيارات أدناه.""",
         reply_markup=reply_markup,
         parse_mode=ParseMode.MARKDOWN,
     )
@@ -87,8 +87,8 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text("❌ لم يتم العثور على الملف بعد التحميل.")
     except Exception as e:
-        await update.message.reply_text(f"❌ خطأ:
-{str(e)}")
+        await update.message.reply_text(f"""❌ خطأ:
+{str(e)}""")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
