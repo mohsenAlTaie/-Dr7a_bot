@@ -279,18 +279,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_expiry(update, context)
     
     elif query.data == "cmd_addvip":
-        await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:")
-/addvip [id] [days]")
-    elif query.data == "cmd_removevip":
-        await query.message.reply_text("🗑️ أرسل الأمر بهذا الشكل:
-/removevip [id]")
-    elif query.data == "cmd_viplist":
-        vips = list_vips()
-        if not vips:
-            await query.message.reply_text("❌ لا يوجد مستخدمين VIP")
-        else:
-            text = "\n".join([f"👤 {uid} - ينتهي بـ {exp}" for uid, exp in vips])
-            await query.message.reply_text(text)
+    await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:\n/addvip [id] [days]")
+elif query.data == "cmd_removevip":
+    await query.message.reply_text("🗑️ أرسل الأمر بهذا الشكل:\n/removevip [id]")
+elif query.data == "cmd_viplist":
+    vips = list_vips()
+    if not vips:
+        await query.message.reply_text("❌ لا يوجد مستخدمين VIP")
+    else:
+        text = "\n".join([f"👤 {uid} - ينتهي بـ {exp}" for uid, exp in vips])
+        await query.message.reply_text(text)
 
 elif query.data == "admin_panel":
         if query.from_user.id != 7249021797:
