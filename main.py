@@ -261,13 +261,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(f"🪪 معرفك هو: `{user.id}`", parse_mode=ParseMode.MARKDOWN)
         return
     elif query.data == "my_stats":
-        user_id = query.from_user.id
-        reset_daily_limits()
-        limit = DAILY_LIMIT_VIP if is_vip(user_id) else DAILY_LIMIT_FREE
-        await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:")
-        remaining = limit - user_data["count"]
-        await query.message.reply_text(f"📊 عدد تحميلاتك اليوم: {user_data['count']} / {limit}")
-        return
+    user_id = query.from_user.id
+    reset_daily_limits()
+    limit = DAILY_LIMIT_VIP if is_vip(user_id) else DAILY_LIMIT_FREE
+    await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:")
+    user_data = get_user_data(user_id)
+    remaining = limit - user_data["count"]
+    await query.message.reply_text(f"📊 عدد تحميلاتك اليوم: {user_data['count']} / {limit}")
+    return
 
         user = query.from_user
         await query.message.reply_text(f"🪪 معرفك هو: `{user.id}`", parse_mode=ParseMode.MARKDOWN)
