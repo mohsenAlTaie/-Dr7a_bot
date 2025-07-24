@@ -110,32 +110,6 @@ async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     text = (
-
-    keyboard = [[InlineKeyboardButton("💬 تواصل مع المطور", url="https://t.me/K0_MG")]]
-    await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(keyboard))
-
-async def show_expiry(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-text = """💎 *معلومات اشتراك VIP:*
-
-
-✅ تحميل فيديوهات بلا حدود
-❌ لا انتظار بين التحميلات
-⚡ أولوية في السرعة
-🔐 دعم الملفات الخاصة
-
-💰 *طرق الدفع:*
-- آسياسيل
-- زين كاش
-- ماستر كارد
-
-📬 للاشتراك، اضغط للتواصل مع المطور
-""""
-"""
-    if expiry:
-        text = (
         "💎 *معلومات اشتراك VIP:*\n\n"
         "✅ تحميل فيديوهات بلا حدود\n"
         "❌ لا انتظار بين التحميلات\n"
@@ -144,7 +118,17 @@ text = """💎 *معلومات اشتراك VIP:*
         "💰 *طرق الدفع:*\n"
         "- آسياسيل\n- زين كاش\n- ماستر كارد\n\n"
         "📬 للاشتراك، اضغط للتواصل مع المطور"
-    )await query.edit_message_text(f"💎 صلاحية اشتراكك تنتهي في: `{expiry}`", parse_mode=ParseMode.MARKDOWN)
+    )
+    keyboard = [[InlineKeyboardButton("💬 تواصل مع المطور", url="https://t.me/K0_MG")]]
+    await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def show_expiry(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    expiry = get_vip_expiry(user_id)
+    if expiry:
+        await query.edit_message_text(f"💎 صلاحية اشتراكك تنتهي في: `{expiry}`", parse_mode=ParseMode.MARKDOWN)
     else:
         await query.edit_message_text("❌ ليس لديك اشتراك VIP حاليًا.")
 
@@ -263,14 +247,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(f"🪪 معرفك هو: `{user.id}`", parse_mode=ParseMode.MARKDOWN)
         return
     elif query.data == "my_stats":
-    user_id = query.from_user.id
-    reset_daily_limits()
-    limit = DAILY_LIMIT_VIP if is_vip(user_id) else DAILY_LIMIT_FREE
-    await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:")
-    user_data = get_user_data(user_id)
-    remaining = limit - user_data["count"]
-    await query.message.reply_text(f"📊 عدد تحميلاتك اليوم: {user_data['count']} / {limit}")
-    return
+        user_id = query.from_user.id
+        reset_daily_limits()
+        limit = DAILY_LIMIT_VIP if is_vip(user_id) else DAILY_LIMIT_FREE
+        user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
+        remaining = limit - user_data["count"]
+        await query.message.reply_text(f"📊 عدد تحميلاتك اليوم: {user_data['count']} / {limit}")
+        return
 
         user = query.from_user
         await query.message.reply_text(f"🪪 معرفك هو: `{user.id}`", parse_mode=ParseMode.MARKDOWN)
@@ -279,20 +262,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_vip_info(update, context)
     elif query.data == "vip_expiry":
         await show_expiry(update, context)
-    
-    elif query.data == "cmd_addvip":
-    await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:\n/addvip [id] [days]")
-elif query.data == "cmd_removevip":
-    await query.message.reply_text("🗑️ أرسل الأمر بهذا الشكل:\n/removevip [id]")
-elif query.data == "cmd_viplist":
-    vips = list_vips()
-    if not vips:
-        await query.message.reply_text("❌ لا يوجد مستخدمين VIP")
-    else:
-        text = "\n".join([f"👤 {uid} - ينتهي بـ {exp}" for uid, exp in vips])
-        await query.message.reply_text(text)
-
-elif query.data == "admin_panel":
+    elif query.data == "admin_panel":
         if query.from_user.id != 7249021797:
             await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
             return
@@ -308,7 +278,7 @@ elif query.data == "admin_panel":
         await show_expiry(update, context)
 
 
-def :
+def main():
     c.execute("CREATE TABLE IF NOT EXISTS vip_users (user_id INTEGER PRIMARY KEY, expires_at TEXT)")
     conn.commit()
     app = Application.builder().token(TOKEN).build()
@@ -320,10 +290,11 @@ def :
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
     logging.info("✅ البوت يعمل الآن وجاهز لاستقبال الأوامر.")
-    
+    app.run_polling()
 
 if __name__ == "__main__":
-    
+    main()
+
 async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -438,40 +409,5 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     app.add_handler(CommandHandler("start", start))
     app.add_handler(conv_handler)
     app.add_handler(CallbackQueryHandler(handle_callback))
-
-
-if __name__ == "__main__":
-    import os
-    PORT = int(os.environ.get("PORT", 8443))
-    RAILWAY_URL = os.environ.get("RAILWAY_STATIC_URL")
-
-    app = Application.builder().token(TOKEN).build()
-
-    conv_handler = ConversationHandler(
-        entry_points=[CallbackQueryHandler(handle_callback)],
-        states={
-            ADD_VIP_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_vip_id)],
-            ADD_VIP_DAYS: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_vip_days)],
-            REMOVE_VIP_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_remove_id)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("usage", usage))
-    app.add_handler(CommandHandler("addvip", add_vip_cmd))
-    app.add_handler(CommandHandler("removevip", remove_vip_cmd))
-    app.add_handler(CommandHandler("viplist", vip_list))
-    app.add_handler(conv_handler)
-    app.add_handler(CallbackQueryHandler(handle_callback))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
-
-    if RAILWAY_URL:
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            url_path=TOKEN,
-            webhook_url=f"https://{RAILWAY_URL}/{TOKEN}"
-        )
-    else:
-        app.run_polling()
+    app.run_polling()
+    main()
