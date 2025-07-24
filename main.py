@@ -1,4 +1,3 @@
-
 import os
 import random
 import logging
@@ -89,7 +88,7 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ لم يتم العثور على الملف بعد التحميل.")
     except Exception as e:
         await update.message.reply_text(f"❌ خطأ:
-{e}")
+{str(e)}")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
