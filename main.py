@@ -12,16 +12,20 @@ import yt_dlp
 
 # إعداد اللوج
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+
 TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
 BOT_USERNAME = "Dr7a_bot"
+
 # مجلد التحميل
 if not os.path.exists("downloads"):
     os.makedirs("downloads")
+
 # قاعدة بيانات VIP
 conn = sqlite3.connect("vip_users.db", check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS vip_users (user_id INTEGER PRIMARY KEY, expires_at TEXT)''')
 conn.commit()
+
 def is_vip(user_id: int):
     c.execute("SELECT expires_at FROM vip_users WHERE user_id = ?", (user_id,))
     row = c.fetchone()
@@ -29,16 +33,22 @@ def is_vip(user_id: int):
         if datetime.strptime(row[0], "%Y-%m-%d") >= datetime.utcnow():
             return True
     return False
+
 def get_vip_expiry(user_id: int):
     return row[0] if row else None
+
 def add_vip(user_id: int, days: int):
     expires_at = datetime.utcnow() + timedelta(days=days)
     c.execute("INSERT OR REPLACE INTO vip_users (user_id, expires_at) VALUES (?, ?)", (user_id, expires_at.date()))
+    conn.commit()
+
 def remove_vip(user_id: int):
     c.execute("DELETE FROM vip_users WHERE user_id = ?", (user_id,))
+
 def list_vips():
     c.execute("SELECT user_id, expires_at FROM vip_users")
     return c.fetchall()
+
 weird_messages = [
     "👽 جاري التواصل مع كائنات TikTok الفضائية...",
     "🔮 فتح بوابة الزمن الرقمي...",
@@ -53,15 +63,18 @@ weird_messages = [
     "🎩 تحويل الرابط إلى أرنب وسحبه من القبعة...",
     "🐢 تحميل الفيديو... بسرعة سلحفاة نينجا 🐢 (امزح، هو سريع!)"
 ]
+
 user_timestamps = {}
 daily_limits = {}
 DAILY_LIMIT_FREE = 10
 DAILY_LIMIT_VIP = 100
+
 def reset_daily_limits():
     current_date = datetime.utcnow().date()
     for user_id in list(daily_limits):
         if daily_limits[user_id]["date"] != current_date:
             daily_limits[user_id] = {"count": 0, "date": current_date}
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("💎 معلومات VIP", callback_data="vip_info")],
@@ -70,6 +83,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📊 إحصائياتي", callback_data="my_stats")],
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
         [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
+    ]
     if update.effective_user.id == 7249021797:
         keyboard.append([InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")])
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -87,6 +101,7 @@ async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
     remaining = limit - user_data["count"]
     await update.message.reply_text(f"📊 عدد التحميلات المتبقية اليوم: {remaining} من {limit}")
+
 async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -101,6 +116,7 @@ async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📬 للاشتراك، اضغط للتواصل مع المطور"
     keyboard = [[InlineKeyboardButton("💬 تواصل مع المطور", url="https://t.me/K0_MG")]]
     await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(keyboard))
+
 async def show_expiry(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     expiry = get_vip_expiry(user_id)
@@ -108,18 +124,23 @@ async def show_expiry(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"💎 صلاحية اشتراكك تنتهي في: `{expiry}`", parse_mode=ParseMode.MARKDOWN)
     else:
         await query.edit_message_text("❌ ليس لديك اشتراك VIP حاليًا.")
+
 async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = time.time()
     url = update.message.text.strip()
+
     if user_id in user_timestamps and now - user_timestamps[user_id] < 10:
         await update.message.reply_text("⏳ الرجاء الانتظار قليلاً قبل إرسال رابط جديد.")
         return
     user_timestamps[user_id] = now
+
     if user_data["count"] >= limit:
         await update.message.reply_text("🚫 وصلت للحد الأقصى. الرجاء المحاولة غدًا أو الترقية إلى VIP.")
     daily_limits[user_id] = {"count": user_data["count"] + 1, "date": datetime.utcnow().date()}
+
     if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "tiktok.com"]):
         await update.message.reply_text("❌ هذا الرابط غير مدعوم.")
+
     if "tiktok.com" in url:
         await update.message.reply_text(random.choice(weird_messages) + "\n⏳ جاري تحميل الفيديو...")
         ydl_opts = {'outtmpl': 'downloads/%(id)s.%(ext)s', 'format': 'mp4', 'quiet': True}
@@ -131,49 +152,73 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.remove(file_path)
         except Exception as e:
             await update.message.reply_text(f"❌ فشل التحميل: {str(e)}")
+
     await update.message.reply_text("📥 جاري تحميل الفيديو...")
+    try:
         file_path = "downloads/video.mp4"
         command = ["yt-dlp", "-f", "mp4"]
+
         if "facebook.com" in url or "fb.watch" in url:
             command += ["--cookies", "facebook_cookies.txt"]
         elif "youtube.com" in url or "youtu.be" in url:
             command += ["--cookies", "youtube_cookies.txt"]
         elif "instagram.com" in url:
             command += ["--cookies", "instagram_cookies.txt"]
+
         command += ["-o", file_path, url]
         subprocess.run(command, check=True)
+
         if os.path.exists(file_path):
             await update.message.reply_video(video=open(file_path, "rb"))
+        else:
             await update.message.reply_text("❌ لم يتم العثور على الملف بعد التحميل.")
     except subprocess.CalledProcessError as e:
         await update.message.reply_text(f"❌ خطأ أثناء التحميل: {str(e)}")
+    except Exception as e:
         await update.message.reply_text(f"❌ خطأ غير متوقع: {str(e)}")
+
 async def add_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if str(update.effective_user.id) != "7249021797":
+
     if update.effective_user.id != 7249021797:
         await update.message.reply_text("❌ هذا الأمر مخصص للإدارة فقط.")
+
         user_id = int(context.args[0])
         days = int(context.args[1])
         add_vip(user_id, days)
         await update.message.reply_text(f"✅ تم إعطاء VIP للمستخدم {user_id} لمدة {days} يومًا")
     except:
         await update.message.reply_text("❌ الاستخدام الصحيح: /addvip [id] [days]")
+
 async def remove_vip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+
         remove_vip(user_id)
         await update.message.reply_text(f"❌ تم حذف VIP للمستخدم {user_id}")
         await update.message.reply_text("❌ الاستخدام الصحيح: /removevip [id]")
+
 async def vip_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+
     vips = list_vips()
     if not vips:
         await update.message.reply_text("❌ لا يوجد مستخدمين VIP")
         text = "\n".join([f"👤 {uid} - ينتهي بـ {exp}" for uid, exp in vips])
         await update.message.reply_text(text)
+
+
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "get_user_id":
         user = query.from_user
         await query.message.reply_text(f"🪪 معرفك هو: `{user.id}`", parse_mode=ParseMode.MARKDOWN)
     elif query.data == "my_stats":
+        user_id = query.from_user.id
+        reset_daily_limits()
+        limit = DAILY_LIMIT_VIP if is_vip(user_id) else DAILY_LIMIT_FREE
+        user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
+        remaining = limit - user_data["count"]
         await query.message.reply_text(f"📊 عدد تحميلاتك اليوم: {user_data['count']} / {limit}")
+
     elif query.data == "vip_info":
         await show_vip_info(update, context)
     elif query.data == "vip_expiry":
@@ -181,11 +226,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "admin_panel":
         if query.from_user.id != 7249021797:
             await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
+            return
+        keyboard = [
             [InlineKeyboardButton("➕ إضافة VIP", callback_data="cmd_addvip")],
             [InlineKeyboardButton("🗑️ حذف VIP", callback_data="cmd_removevip")],
             [InlineKeyboardButton("📋 قائمة VIP", callback_data="cmd_viplist")]
+        ]
         await query.message.reply_text("⚙️ *لوحة التحكم الإدارية:*", parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(keyboard))
         await show_admin_panel(update, context)
+
+
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -197,23 +247,43 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
     logging.info("✅ البوت يعمل الآن وجاهز لاستقبال الأوامر.")
     app.run_polling()
+
 if __name__ == "__main__":
     main()
+
 async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if query.from_user.id != 7249021797:
+        await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
         [InlineKeyboardButton("✅ تفعيل VIP", callback_data="activate_vip"),
          InlineKeyboardButton("❌ حذف VIP", callback_data="remove_vip")],
         [InlineKeyboardButton("📋 عرض قائمة VIP", callback_data="list_vip")],
         [InlineKeyboardButton("🚫 تعطيل التحميل", callback_data="pause_downloads")],
         [InlineKeyboardButton("📢 إرسال تنبيه", callback_data="broadcast_alert")],
     await query.message.reply_text("⚙️ *لوحة التحكم الإدارية:*", reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ContextTypes, ConversationHandler, filters
+)
+
+
 OWNER_ID = 7249021797
+
 c.execute("CREATE TABLE IF NOT EXISTS vip_users (user_id INTEGER PRIMARY KEY, expires_at TEXT)")
+
+
+
+
+
+
+
+
 ADD_VIP_ID, ADD_VIP_DAYS, REMOVE_VIP_ID = range(3)
+
     if update.effective_user.id == OWNER_ID:
     await update.message.reply_text("👁✨ مرحباً بك! أرسل رابطاً للتحميل ✨", reply_markup=InlineKeyboardMarkup(keyboard))
+
+
     if query.data == "admin_panel" and user_id == OWNER_ID:
             [InlineKeyboardButton("📋 قائمة VIP", callback_data="cmd_viplist")],
         await query.message.reply_text("⚙️ لوحة التحكم الإدارية:", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -224,27 +294,36 @@ ADD_VIP_ID, ADD_VIP_DAYS, REMOVE_VIP_ID = range(3)
         await query.message.reply_text("🗑️ أرسل ID المستخدم لحذفه من VIP:")
         return REMOVE_VIP_ID
     elif query.data == "cmd_viplist" and user_id == OWNER_ID:
+        vips = list_vips()
+        if not vips:
             await query.message.reply_text("❌ لا يوجد مستخدمين VIP")
             text = "
 ".join([f"👤 {uid} - ينتهي في: {exp}" for uid, exp in vips])
             await query.message.reply_text(text)
     return ConversationHandler.END
+
 async def receive_vip_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = int(update.message.text.strip())
         context.user_data["vip_user_id"] = user_id
         await update.message.reply_text("⏳ أرسل عدد الأيام لإعطاء VIP:")
         return ADD_VIP_DAYS
         await update.message.reply_text("❌ معرف غير صالح. حاول مرة أخرى.")
+        return ConversationHandler.END
+
 async def receive_vip_days(update: Update, context: ContextTypes.DEFAULT_TYPE):
         days = int(update.message.text.strip())
         user_id = context.user_data.get("vip_user_id")
         await update.message.reply_text(f"✅ تم إعطاء VIP للمستخدم {user_id} لمدة {days} يومًا.")
         await update.message.reply_text("❌ عدد أيام غير صالح.")
+
 async def receive_remove_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"🗑️ تم حذف VIP للمستخدم {user_id}.")
         await update.message.reply_text("❌ معرف غير صالح.")
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ تم الإلغاء.")
+
+
     conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(handle_callback)],
         states={
@@ -253,4 +332,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
             REMOVE_VIP_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_remove_id)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
+
     app.add_handler(conv_handler)
+
+
