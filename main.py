@@ -132,7 +132,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "list_vip":
         vips = list_vips()
         text = "\n".join([f"{uid} - ينتهي: {time.strftime('%Y-%m-%d', time.localtime(exp))}" for uid, exp in vips]) or "❌ لا يوجد مشتركين حالياً."
-        await query.edit_message_text(f"📋 قائمة VIP:
+await query.edit_message_text(f"""📋 قائمة VIP:\n{text}""")
 {text}")
     elif data == "show_userid":
         await query.edit_message_text(f"🪪 معرفك: `{user_id}`", parse_mode=ParseMode.MARKDOWN)
