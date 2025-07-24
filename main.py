@@ -42,17 +42,12 @@ user_timestamps = {}
 
 # رسالة /start موحدة
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    
     keyboard = [
-        [InlineKeyboardButton("🎟️ تفعيل VIP", callback_data="vip_activate")],
+        [InlineKeyboardButton("🎟️ تفعيل VIP", callback_data="cmd_addvip")],
         [InlineKeyboardButton("🪪 معرفي", callback_data="get_user_id")],
-        [InlineKeyboardButton("🛠️ لوحة التحكم", callback_data="admin_panel")]
+        [InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")]
     ]
-
-    keyboard += [
-        [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
-        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
-    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     welcome_message = (
@@ -121,38 +116,46 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ خطأ غير متوقع:\n{str(e)}")
 
 # تشغيل البوت
-def main():
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
-    app.add_handler(CallbackQueryHandler(handle_callback))
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
 
 
-from telegram.ext import CallbackQueryHandler
-
+# التعامل مع الأزرار
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+
     if query.data == "get_user_id":
-        user_id = query.from_user.id
-        await query.message.reply_text(f"🪪 معرفك هو: `{user_id}`", parse_mode=ParseMode.MARKDOWN)
-    elif query.data == "vip_activate":
-        await query.message.reply_text("🎟️ لتفعيل VIP، أرسل /addvip [id] [days] إلى المطور.")
+        user = query.from_user
+        await query.message.reply_text(f"🪪 معرفك هو: `{user.id}`", parse_mode=ParseMode.MARKDOWN)
+        return
+
+    elif query.data == "cmd_addvip":
+        await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:\n/addvip [id] [days]")
+        return
+
+    elif query.data == "cmd_removevip":
+        await query.message.reply_text("🗑️ أرسل الأمر بهذا الشكل:\n/removevip [id]")
+        return
+
+    elif query.data == "cmd_viplist":
+        await query.message.reply_text("📋 قائمة VIP حالياً غير مفعّلة بالكود.")
+        return
+
     elif query.data == "admin_panel":
-        keyboard = [
+        admin_keyboard = [
             [InlineKeyboardButton("➕ إضافة VIP", callback_data="cmd_addvip")],
             [InlineKeyboardButton("🗑️ حذف VIP", callback_data="cmd_removevip")],
             [InlineKeyboardButton("📋 قائمة VIP", callback_data="cmd_viplist")]
         ]
-        await query.message.reply_text("🛠️ لوحة تحكم الإدارة:", reply_markup=InlineKeyboardMarkup(keyboard))
-    elif query.data == "cmd_addvip":
-        await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:\n/addvip [id] [days]")
-    elif query.data == "cmd_removevip":
-        await query.message.reply_text("🗑️ أرسل الأمر بهذا الشكل:\n/removevip [id]")
-    elif query.data == "cmd_viplist":
-        await query.message.reply_text("📋 ميزة عرض قائمة VIP قيد التطوير حالياً.")
+        await query.message.reply_text("🛠️ لوحة التحكم:", reply_markup=InlineKeyboardMarkup(admin_keyboard))
+        return
 
+
+def main():
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
