@@ -126,7 +126,19 @@ async def show_expiry(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    expiry = get_vip_expiry(user_id)
+"💎 *معلومات اشتراك VIP:*
+
+✅ تحميل فيديوهات بلا حدود
+❌ لا انتظار بين التحميلات
+⚡ أولوية في السرعة
+🔐 دعم الملفات الخاصة
+
+💰 *طرق الدفع:*
+- آسياسيل
+- زين كاش
+- ماستر كارد
+
+📬 للاشتراك، اضغط للتواصل مع المطور"
     if expiry:
         await query.edit_message_text(f"💎 صلاحية اشتراكك تنتهي في: `{expiry}`", parse_mode=ParseMode.MARKDOWN)
     else:
