@@ -264,7 +264,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = query.from_user.id
         reset_daily_limits()
         limit = DAILY_LIMIT_VIP if is_vip(user_id) else DAILY_LIMIT_FREE
-        user_data = daily_limits.get(user_id, {"count": 0, "date": datetime.utcnow().date()})
+        await query.message.reply_text("🎂 أرسل الأمر بهذا الشكل:\n/vip USER_ID DAYS")
         remaining = limit - user_data["count"]
         await query.message.reply_text(f"📊 عدد تحميلاتك اليوم: {user_data['count']} / {limit}")
         return
