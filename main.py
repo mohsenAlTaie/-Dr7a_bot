@@ -279,7 +279,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_expiry(update, context)
     
     elif query.data == "cmd_addvip":
-        await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:
+        await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:")
 /addvip [id] [days]")
     elif query.data == "cmd_removevip":
         await query.message.reply_text("🗑️ أرسل الأمر بهذا الشكل:
