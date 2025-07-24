@@ -293,7 +293,7 @@ elif query.data == "admin_panel":
         await show_expiry(update, context)
 
 
-def main():
+def :
     c.execute("CREATE TABLE IF NOT EXISTS vip_users (user_id INTEGER PRIMARY KEY, expires_at TEXT)")
     conn.commit()
     app = Application.builder().token(TOKEN).build()
@@ -305,11 +305,10 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
     logging.info("✅ البوت يعمل الآن وجاهز لاستقبال الأوامر.")
-    app.run_polling()
+    
 
 if __name__ == "__main__":
-    main()
-
+    
 async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -424,5 +423,40 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     app.add_handler(CommandHandler("start", start))
     app.add_handler(conv_handler)
     app.add_handler(CallbackQueryHandler(handle_callback))
-    app.run_polling()
-    main()
+
+
+if __name__ == "__main__":
+    import os
+    PORT = int(os.environ.get("PORT", 8443))
+    RAILWAY_URL = os.environ.get("RAILWAY_STATIC_URL")
+
+    app = Application.builder().token(TOKEN).build()
+
+    conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(handle_callback)],
+        states={
+            ADD_VIP_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_vip_id)],
+            ADD_VIP_DAYS: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_vip_days)],
+            REMOVE_VIP_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_remove_id)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("usage", usage))
+    app.add_handler(CommandHandler("addvip", add_vip_cmd))
+    app.add_handler(CommandHandler("removevip", remove_vip_cmd))
+    app.add_handler(CommandHandler("viplist", vip_list))
+    app.add_handler(conv_handler)
+    app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
+
+    if RAILWAY_URL:
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            url_path=TOKEN,
+            webhook_url=f"https://{RAILWAY_URL}/{TOKEN}"
+        )
+    else:
+        app.run_polling()
