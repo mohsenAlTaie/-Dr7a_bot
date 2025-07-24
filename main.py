@@ -289,6 +289,7 @@ elif query.data == "cmd_viplist":
     else:
         text = "\n".join([f"👤 {uid} - ينتهي بـ {exp}" for uid, exp in vips])
         await query.message.reply_text(text)
+
 elif query.data == "admin_panel":
         if query.from_user.id != 7249021797:
             await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
@@ -461,14 +462,4 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("viplist", vip_list))
     app.add_handler(conv_handler)
     app.add_handler(CallbackQueryHandler(handle_callback))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
-
-    if RAILWAY_URL:
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            url_path=TOKEN,
-            webhook_url=f"https://{RAILWAY_URL}/{TOKEN}"
-        )
-    else:
-        app.run_polling()
+    app.add_handler(MessageHandler(filters.TEXT & ~filte
