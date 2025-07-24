@@ -109,15 +109,7 @@ async def usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    text = (
-        "💎 *معلومات اشتراك VIP:*\n\n"
-        "✅ تحميل فيديوهات بلا حدود\n"
-        "❌ لا انتظار بين التحميلات\n"
-        "⚡ أولوية في السرعة\n"
-        "🔐 دعم الملفات الخاصة\n\n"
-        "💰 *طرق الدفع:*\n"
-        "- آسياسيل\n- زين كاش\n- ماستر كارد\n\n"
-        "📬 للاشتراك، اضغط للتواصل مع المطور"
+    
     )
     keyboard = [[InlineKeyboardButton("💬 تواصل مع المطور", url="https://t.me/K0_MG")]]
     await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -144,7 +136,19 @@ async def show_expiry(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await query.edit_message_text("❌ ليس لديك اشتراك VIP حاليًا.")
 
-async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async dtext = """💎 *معلومات اشتراك VIP:*
+
+✅ تحميل فيديوهات بلا حدود
+❌ لا انتظار بين التحميلات
+⚡ أولوية في السرعة
+🔐 دعم الملفات الخاصة
+
+💰 *طرق الدفع:*
+- آسياسيل
+- زين كاش
+- ماستر كارد
+
+📬 للاشتراك، اضغط للتواصل مع المطور"""ef handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     now = time.time()
     url = update.message.text.strip()
