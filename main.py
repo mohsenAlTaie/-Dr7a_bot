@@ -1,28 +1,22 @@
-
 import os
 import random
 import logging
 import time
 import subprocess
-import sqlite3
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+import yt_dlp
 
 # إعداد اللوج
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
 
-# معلومات البوت والإدارة
+# توكن البوت الموحد
 TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
-BOT_USERNAME = "Dr7a_bot"
-ADMIN_ID = 7249021797
-
-# قاعدة بيانات VIP
-DB_NAME = "vip_users.db"
-if not os.path.exists(DB_NAME):
-    with sqlite3.connect(DB_NAME) as conn:
-        conn.execute("CREATE TABLE vip (user_id INTEGER PRIMARY KEY)")
-        conn.commit()
+BOT_USERNAME = "Dr7a_bot"  # استبدله إذا تغيّر
+ADMIN_ID = 7249021797  # معرف الأدمن
 
 # إنشاء مجلد التحميل
 if not os.path.exists("downloads"):
@@ -33,122 +27,127 @@ weird_messages = [
     "👽 جاري التواصل مع كائنات TikTok الفضائية...",
     "🔮 فتح بوابة الزمن الرقمي...",
     "🧪 خلط فيديوهات TikTok في المختبر السري...",
+    "🐍 استدعاء تنين TikTok لتحميل الفيديو...",
+    "📡 التقاط إشارة من سيرفرات الصين...",
     "🚀 تحميل الفيديو بسرعة تتجاوز سرعة الضوء... تقريبًا",
+    "🧠 استخدام الذكاء الاصطناعي لفك شيفرة الرابط...",
+    "💿 إدخال قرص TikTok داخل مشغل VHS الفضائي...",
+    "👾 استدعاء روبوت التحميل من بعد آخر...",
+    "🍕 رش جبنة على الرابط للحصول على نكهة أفضل للفيديو...",
+    "🎩 تحويل الرابط إلى أرنب وسحبه من القبعة...",
+    "🐢 تحميل الفيديو... بسرعة سلحفاة نينجا 🐢 (امزح، هو سريع!)"
 ]
 
+# نظام حماية من السبام
 user_timestamps = {}
 
-def is_vip(user_id: int) -> bool:
-    with sqlite3.connect(DB_NAME) as conn:
-        cursor = conn.execute("SELECT 1 FROM vip WHERE user_id = ?", (user_id,))
-        return cursor.fetchone() is not None
-
+# رسالة /start موحدة
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
     keyboard = [
         [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
-        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")],
-        [InlineKeyboardButton("فحص الاشتراك", callback_data="check_vip")],
+        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
     ]
-    if user_id == ADMIN_ID:
-        keyboard.append([InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")])
-
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        """👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*
 
-أرسل الرابط الآن لتحميل الفيديو، أو استخدم الخيارات أدناه.""",
-        reply_markup=reply_markup,
-        parse_mode=ParseMode.MARKDOWN,
+    welcome_message = (
+        "👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*\n\n"
+        "هل أنت مستعدّ لاختراق عوالم الفيديوهات من فيسبوك، يوتيوب، إنستغرام، وتيك توك؟ 🚀📥\n"
+        "هنا حيث تنصهر الروابط وتولد الملفات! 🌐🔥\n\n"
+        "📎 فقط أرسل الرابط، وسأقوم بالباقي... لا حاجة للشرح، فقط الثقة 💼🤖\n\n"
+        "🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻"
     )
 
+    await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+
+# لوحة تحكم الادمن
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("❌ ليس لديك صلاحية الوصول إلى لوحة التحكم.")
+        return
+
+    keyboard = [
+        [InlineKeyboardButton("➕ إضافة مشترك", callback_data="add_user")],
+        [InlineKeyboardButton("➖ حذف مشترك", callback_data="remove_user")],
+        [InlineKeyboardButton("👁️ عرض المشتركين", callback_data="list_users")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("📋 *لوحة التحكم الإدارية:*", reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+
+# كول باك أزرار لوحة التحكم
+async def control_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if update.effective_user.id != ADMIN_ID:
+        await query.edit_message_text("❌ لا تملك صلاحية استخدام هذه الأزرار.")
+        return
+
+    if data == "add_user":
+        await query.edit_message_text("🟢 أرسل الآن آيدي المستخدم لإضافته كمشترك.")
+    elif data == "remove_user":
+        await query.edit_message_text("🔴 أرسل الآن آيدي المستخدم لحذفه من المشتركين.")
+    elif data == "list_users":
+        await query.edit_message_text("📄 قائمة المشتركين:\n(هذه فقط واجهة وهمية، ستُفعّل لاحقًا)")
+
+# الدالة الأساسية لتحليل وتحميل الفيديو
 async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    url = update.message.text.strip()
     now = time.time()
+    url = update.message.text.strip()
 
     if user_id in user_timestamps and now - user_timestamps[user_id] < 10:
         await update.message.reply_text("⏳ الرجاء الانتظار قليلاً قبل إرسال رابط جديد.")
         return
     user_timestamps[user_id] = now
 
-    if not is_vip(user_id):
-        await update.message.reply_text("❌ هذه الميزة مخصصة للمشتركين VIP فقط.")
+    if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
+        await update.message.reply_text("❌ هذا الرابط غير مدعوم. أرسل رابط من YouTube أو Facebook أو Instagram أو TikTok.")
         return
 
-    await update.message.reply_text(random.choice(weird_messages))
+    if "tiktok.com" in url:
+        loading_msg = random.choice(weird_messages)
+        await update.message.reply_text(f"{loading_msg}\n⏳ جاري تحميل الفيديو...")
+        ydl_opts = {
+            'outtmpl': 'downloads/%(id)s.%(ext)s',
+            'format': 'mp4',
+            'quiet': True,
+        }
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                file_path = ydl.prepare_filename(info)
+
+            await update.message.reply_video(video=open(file_path, 'rb'))
+            os.remove(file_path)
+        except Exception as e:
+            await update.message.reply_text(f"❌ فشل التحميل من TikTok:\n{str(e)}")
+        return
+
+    await update.message.reply_text("📥 جاري تحميل الفيديو، يرجى الانتظار...")
+
     try:
         file_path = "downloads/video.mp4"
         command = ["yt-dlp", "-f", "mp4", "-o", file_path, url]
         subprocess.run(command, check=True)
+
         if os.path.exists(file_path):
             await update.message.reply_video(video=open(file_path, "rb"))
             os.remove(file_path)
         else:
             await update.message.reply_text("❌ لم يتم العثور على الملف بعد التحميل.")
+    except subprocess.CalledProcessError as e:
+        await update.message.reply_text(f"❌ خطأ أثناء تحميل الفيديو:\n{str(e)}")
     except Exception as e:
-        await update.message.reply_text(f"""❌ خطأ:
-{str(e)}""")
+        await update.message.reply_text(f"❌ خطأ غير متوقع:\n{str(e)}")
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-
-    if query.data == "check_vip":
-        if is_vip(user_id):
-            await query.edit_message_text("✅ أنت مشترك VIP.")
-        else:
-            await query.edit_message_text("❌ أنت لست مشترك VIP.")
-    elif query.data == "admin_panel" and user_id == ADMIN_ID:
-        keyboard = [
-            [InlineKeyboardButton("➕ إضافة VIP", callback_data="add_vip")],
-            [InlineKeyboardButton("🗑️ حذف VIP", callback_data="remove_vip")],
-            [InlineKeyboardButton("📋 قائمة VIP", callback_data="list_vip")],
-            [InlineKeyboardButton("🪪 معرف المستخدم", callback_data="get_user_id")],
-        ]
-        await query.edit_message_text("⚙️ لوحة التحكم:", reply_markup=InlineKeyboardMarkup(keyboard))
-    elif query.data == "add_vip" and user_id == ADMIN_ID:
-        context.user_data["admin_action"] = "add"
-        await query.edit_message_text("🔢 أرسل الآن معرف المستخدم لإضافته VIP.")
-    elif query.data == "remove_vip" and user_id == ADMIN_ID:
-        context.user_data["admin_action"] = "remove"
-        await query.edit_message_text("🔢 أرسل معرف المستخدم لحذفه من VIP.")
-    elif query.data == "list_vip" and user_id == ADMIN_ID:
-        with sqlite3.connect(DB_NAME) as conn:
-            rows = conn.execute("SELECT user_id FROM vip").fetchall()
-        vip_list = "\n".join(str(row[0]) for row in rows) or "🚫 لا يوجد مشتركين VIP."
-        await query.edit_message_text(f"📋 قائمة VIP:\n{vip_list}")
-    elif query.data == "get_user_id":
-        await query.edit_message_text(f"🪪 معرفك: {user_id}")
-
-async def admin_id_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID:
-        return
-    action = context.user_data.get("admin_action")
-    if not action:
-        return
-
-    try:
-        user_id = int(update.message.text.strip())
-        with sqlite3.connect(DB_NAME) as conn:
-            if action == "add":
-                conn.execute("INSERT OR IGNORE INTO vip(user_id) VALUES(?)", (user_id,))
-                await update.message.reply_text(f"✅ تم إضافة {user_id} إلى VIP.")
-            elif action == "remove":
-                conn.execute("DELETE FROM vip WHERE user_id = ?", (user_id,))
-                await update.message.reply_text(f"🗑️ تم حذف {user_id} من VIP.")
-            conn.commit()
-    except ValueError:
-        await update.message.reply_text("❌ يجب أن ترسل رقم معرف صحيح.")
-    context.user_data["admin_action"] = None
-
+# تشغيل البوت
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(CommandHandler("admin", admin_panel))
+    app.add_handler(CallbackQueryHandler(control_callbacks))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
-    app.add_handler(MessageHandler(filters.TEXT & filters.USER(user_id=ADMIN_ID), admin_id_input))
     app.run_polling()
 
 if __name__ == "__main__":
