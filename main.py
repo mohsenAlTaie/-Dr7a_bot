@@ -150,11 +150,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await query.message.reply_text("🛠️ لوحة تحكم الإدارة:", reply_markup=InlineKeyboardMarkup(keyboard))
     elif query.data == "cmd_addvip":
-        await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:
-/addvip [id] [days]")
+        await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:\n/addvip [id] [days]")
     elif query.data == "cmd_removevip":
-        await query.message.reply_text("🗑️ أرسل الأمر بهذا الشكل:
-/removevip [id]")
+        await query.message.reply_text("🗑️ أرسل الأمر بهذا الشكل:\n/removevip [id]")
     elif query.data == "cmd_viplist":
         await query.message.reply_text("📋 ميزة عرض قائمة VIP قيد التطوير حالياً.")
 
