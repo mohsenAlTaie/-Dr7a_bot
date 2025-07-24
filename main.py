@@ -43,11 +43,9 @@ user_timestamps = {}
 # رسالة /start موحدة
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("🎟️ تفعيل VIP", callback_data="cmd_addvip")],
-        [InlineKeyboardButton("🪪 معرفي", callback_data="get_user_id")],
-        [InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")]
+        [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
+        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")],[InlineKeyboardButton("🪪 معرفي", callback_data="get_user_id")],[InlineKeyboardButton("🪪 معرفي", callback_data="get_user_id")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     welcome_message = (
@@ -118,36 +116,44 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # تشغيل البوت
 
 
-# التعامل مع الأزرار
+from datetime import datetime, timedelta
+from telegram.ext import CallbackQueryHandler
+
+vip_users = {
+    "7249021797": datetime.now() + timedelta(days=365)  # مثال اشتراك سنة
+}
+
+# التحقق من صلاحية الاشتراك
+def is_vip(user_id):
+    exp = vip_users.get(str(user_id))
+    return exp and exp > datetime.now()
+
+# دالة الأزرار
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    uid = str(query.from_user.id)
     await query.answer()
 
     if query.data == "get_user_id":
-        user = query.from_user
-        await query.message.reply_text(f"🪪 معرفك هو: `{user.id}`", parse_mode=ParseMode.MARKDOWN)
+        await query.message.reply_text(f"🪪 معرفك هو: `{uid}`", parse_mode=ParseMode.MARKDOWN)
         return
 
-    elif query.data == "cmd_addvip":
-        await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:\n/addvip [id] [days]")
+    if uid != "7249021797":
+        await query.message.reply_text("❌ هذه اللوحة خاصة بالمطور فقط.")
         return
 
-    elif query.data == "cmd_removevip":
-        await query.message.reply_text("🗑️ أرسل الأمر بهذا الشكل:\n/removevip [id]")
-        return
+    if query.data == "admin_panel":
+        exp_date = vip_users.get(uid)
+        exp_str = exp_date.strftime('%Y-%m-%d') if exp_date else "غير محدد"
+        text = f"💎 *لوحة الإدارة*
 
-    elif query.data == "cmd_viplist":
-        await query.message.reply_text("📋 قائمة VIP حالياً غير مفعّلة بالكود.")
-        return
-
-    elif query.data == "admin_panel":
-        admin_keyboard = [
-            [InlineKeyboardButton("➕ إضافة VIP", callback_data="cmd_addvip")],
-            [InlineKeyboardButton("🗑️ حذف VIP", callback_data="cmd_removevip")],
-            [InlineKeyboardButton("📋 قائمة VIP", callback_data="cmd_viplist")]
+📅 اشتراكك ينتهي في: `{exp_str}`"
+        keyboard = [
+            [InlineKeyboardButton("➕ إضافة VIP", callback_data="noop")],
+            [InlineKeyboardButton("🗑️ حذف VIP", callback_data="noop")],
+            [InlineKeyboardButton("📋 قائمة VIP", callback_data="noop")]
         ]
-        await query.message.reply_text("🛠️ لوحة التحكم:", reply_markup=InlineKeyboardMarkup(admin_keyboard))
-        return
+        await query.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
 
 
 def main():
