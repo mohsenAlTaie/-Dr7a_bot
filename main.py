@@ -76,21 +76,36 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("👨‍💻 المطور", url="https://t.me/K0_MG")],
         [InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")] if update.effective_user.id == ADMIN_ID else []
     ]
-    text = "👋 مرحباً بك في بوت تحميل الفيديوهات المدعوم للمشتركين بنظام VIP.
-
-📥 أرسل رابط من TikTok أو YouTube أو Facebook أو Instagram.
-"
-
     if is_vip(update.effective_user.id):
         expiry = get_vip_expiry(update.effective_user.id)
         date_str = time.strftime("%Y-%m-%d", time.localtime(expiry))
-        text += f"
-✅ اشتراكك مفعل حتى: {date_str} 🎫"
-    else:
-        text += "
-❌ حسابك غير مفعل. يرجى الاشتراك عبر المطور."
+        welcome_message = f"""
+👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*
 
-    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup([row for row in keyboard if row]), parse_mode=ParseMode.HTML)
+هل أنت مستعدّ لاختراق عوالم الفيديوهات من فيسبوك، يوتيوب، إنستغرام، وتيك توك؟ 🚀📥
+هنا حيث تنصهر الروابط وتولد الملفات! 🌐🔥
+
+📎 فقط أرسل الرابط، وسأقوم بالباقي... لا حاجة للشرح، فقط الثقة 💼🤖
+
+✅ اشتراكك مفعل حتى: {date_str} 🎫
+
+🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻
+"""
+    else:
+        welcome_message = """
+👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*
+
+هل أنت مستعدّ لاختراق عوالم الفيديوهات من فيسبوك، يوتيوب، إنستغرام، وتيك توك؟ 🚀📥
+هنا حيث تنصهر الروابط وتولد الملفات! 🌐🔥
+
+📎 فقط أرسل الرابط، وسأقوم بالباقي... لا حاجة للشرح، فقط الثقة 💼🤖
+
+❌ حسابك غير مفعل. يرجى الاشتراك عبر المطور.
+
+🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻
+"""
+
+    await update.message.reply_text(welcome_message, reply_markup=InlineKeyboardMarkup([row for row in keyboard if row]), parse_mode=ParseMode.MARKDOWN)
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
