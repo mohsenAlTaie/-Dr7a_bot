@@ -262,7 +262,22 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_vip_info(update, context)
     elif query.data == "vip_expiry":
         await show_expiry(update, context)
-    elif query.data == "admin_panel":
+    
+    elif query.data == "cmd_addvip":
+        await query.message.reply_text("📥 أرسل الأمر بهذا الشكل:
+/addvip [id] [days]")
+    elif query.data == "cmd_removevip":
+        await query.message.reply_text("🗑️ أرسل الأمر بهذا الشكل:
+/removevip [id]")
+    elif query.data == "cmd_viplist":
+        vips = list_vips()
+        if not vips:
+            await query.message.reply_text("❌ لا يوجد مستخدمين VIP")
+        else:
+            text = "\n".join([f"👤 {uid} - ينتهي بـ {exp}" for uid, exp in vips])
+            await query.message.reply_text(text)
+
+elif query.data == "admin_panel":
         if query.from_user.id != 7249021797:
             await query.message.reply_text("❌ هذا الخيار مخصص فقط للإدارة.")
             return
@@ -411,35 +426,3 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.run_polling()
     main()
-
-# ✅ تعديل للتشغيل عبر Webhook على Railway
-import os
-from telegram.ext import Application
-
-PORT = int(os.environ.get("PORT", 8443))
-RAILWAY_URL = os.environ.get("RAILWAY_STATIC_URL")
-
-if __name__ == "__main__":
-    app = Application.builder().token(TOKEN).build()
-
-    # أوامر البوت
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("usage", usage))
-    app.add_handler(CommandHandler("addvip", add_vip_cmd))
-    app.add_handler(CommandHandler("removevip", remove_vip_cmd))
-    app.add_handler(CommandHandler("viplist", vip_list))
-    app.add_handler(CallbackQueryHandler(handle_callback))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
-
-    logging.info("✅ البوت يعمل عبر Webhook على Railway.")
-
-    if RAILWAY_URL:
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            url_path=TOKEN,
-            webhook_url=f"https://{RAILWAY_URL}/{TOKEN}"
-        )
-    else:
-        logging.error("❌ لم يتم العثور على RAILWAY_STATIC_URL. تأكد من إعداد المتغيرات البيئية.")
-
