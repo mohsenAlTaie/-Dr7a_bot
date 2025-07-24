@@ -111,13 +111,15 @@ async def show_vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     text = (
 text = """💎 *معلومات اشتراك VIP:*
+
         "✅ تحميل فيديوهات بلا حدود\n"
         "❌ لا انتظار بين التحميلات\n"
         "⚡ أولوية في السرعة\n"
         "🔐 دعم الملفات الخاصة\n\n"
         "💰 *طرق الدفع:*\n"
         "- آسياسيل\n- زين كاش\n- ماستر كارد\n\n"
-        "📬 للاشتراك، اضغط للتواصل مع المطور"
+        "📬 للاشتراك، اضغط للتواصل مع المطور
+""""
 """
     )
     keyboard = [[InlineKeyboardButton("💬 تواصل مع المطور", url="https://t.me/K0_MG")]]
@@ -129,6 +131,7 @@ async def show_expiry(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
 text = """💎 *معلومات اشتراك VIP:*
 
+
 ✅ تحميل فيديوهات بلا حدود
 ❌ لا انتظار بين التحميلات
 ⚡ أولوية في السرعة
@@ -139,7 +142,8 @@ text = """💎 *معلومات اشتراك VIP:*
 - زين كاش
 - ماستر كارد
 
-📬 للاشتراك، اضغط للتواصل مع المطور"
+📬 للاشتراك، اضغط للتواصل مع المطور
+""""
 """
     if expiry:
         await query.edit_message_text(f"💎 صلاحية اشتراكك تنتهي في: `{expiry}`", parse_mode=ParseMode.MARKDOWN)
@@ -462,4 +466,14 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("viplist", vip_list))
     app.add_handler(conv_handler)
     app.add_handler(CallbackQueryHandler(handle_callback))
-    app.add_handler(MessageHandler(filters.TEXT & ~filte
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
+
+    if RAILWAY_URL:
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            url_path=TOKEN,
+            webhook_url=f"https://{RAILWAY_URL}/{TOKEN}"
+        )
+    else:
+        app.run_polling()
