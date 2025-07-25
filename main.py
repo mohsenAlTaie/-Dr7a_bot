@@ -100,7 +100,7 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         file_path = "downloads/video.mp4"
-        command = ["yt-dlp", "-f", "mp4", "-o", file_path, url]
+        command = ["yt-dlp", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best", "-o", file_path, url]
         subprocess.run(command, check=True)
 
         if os.path.exists(file_path):
