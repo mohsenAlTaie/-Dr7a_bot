@@ -20,7 +20,7 @@ from telegram.ext import (
 )
 import yt_dlp
 
-BOT_TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
+BOT_TOKEN = "8444492438:AAGH0f5wTCYiie3Vhv9d8rlv1i4LvR6VMW4"
 ADMIN_ID = 7249021797
 
 DOWNLOADS_DIR = "downloads"
@@ -152,11 +152,12 @@ def download_media(url: str, format_code: str = None) -> str:
         "quiet": True,
         "no_warnings": True,
         "ignoreerrors": True,
-        "format": format_code or "best",
+        "format": format_code or "bestvideo+bestaudio/best",
         "noplaylist": True,
         "retries": 3,
         "cachedir": False,
         "nooverwrites": True,
+        "force_generic_extractor": True,
     }
 
     if "facebook.com" in url:
@@ -297,7 +298,6 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get("admin_action"):
-        # نمنع التحميل إذا نحن بانتظار إدخال إداري (مثل إضافة VIP)
         return
 
     url = update.message.text.strip()
