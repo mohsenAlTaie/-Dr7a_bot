@@ -17,7 +17,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
-TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
+TOKEN = "8444492438:AAGH0f5wTCYiie3Vhv9d8rlv1i4LvR6VMW4"
 ADMIN_ID = 7249021797
 BOT_USERNAME = "Dr7a_bot"
 
@@ -325,6 +325,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await query.edit_message_text("❌ خيار غير معروف.")
 
+def get_cookies_path(url):
+    # انستغرام ستوري
+    if "instagram.com/stories/" in url:
+        return "cookies_instagram_story.txt"
+    # فيسبوك ستوري
+    elif ("facebook.com/stories/" in url or "fb.watch" in url and "story" in url):
+        return "cookies_facebook_story.txt"
+    # انستغرام عادي
+    elif "instagram.com" in url:
+        return "cookies_instagram.txt"
+    # فيسبوك عادي
+    elif "facebook.com" in url or "fb.watch" in url:
+        return "cookies_facebook.txt"
+    # يوتيوب
+    elif "youtube.com" in url or "youtu.be" in url:
+        return "cookies_youtube.txt"
+    else:
+        return None
+
 async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
@@ -381,20 +400,20 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     url = update.message.text.strip()
 
+    # دعم ملفات الكوكيز تلقائياً
+    cookies_file = get_cookies_path(url)
+
     if "tiktok.com" in url:
         loading_msg = random.choice(weird_messages)
         await update.message.reply_text(f"{loading_msg}\n⏳ جاري تحميل الفيديو...")
         ydl_opts = {
             'outtmpl': 'downloads/%(id)s.%(ext)s',
             'format': 'mp4',
-            'cookiefile': 'cookies.txt',
             'quiet': True,
         }
+        if cookies_file and os.path.exists(cookies_file):
+            ydl_opts['cookiefile'] = cookies_file
         try:
-        	
-        
-        
-        
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 file_path = ydl.prepare_filename(info)
@@ -409,12 +428,12 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📥 جاري تحميل الفيديو، يرجى الانتظار...")
 
     try:
-    	
-    
-    
-    
         file_path = "downloads/video.mp4"
-        command = ["yt-dlp", "--cookies", "cookies.txt", "-f", "mp4", "-o", file_path, url]
+        command = ["yt-dlp", "-f", "mp4", "-o", file_path, url]
+        # دعم الكوكيز للمنصات الأخرى (يوتيوب/فيسبوك/انستا)
+        if cookies_file and os.path.exists(cookies_file):
+            command = ["yt-dlp", "--cookies", cookies_file, "-f", "mp4", "-o", file_path, url]
+
         subprocess.run(command, check=True)
 
         if os.path.exists(file_path):
