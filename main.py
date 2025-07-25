@@ -387,6 +387,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ydl_opts = {
             'outtmpl': 'downloads/%(id)s.%(ext)s',
             'format': 'mp4',
+            'cookiefile': 'cookies.txt',
             'quiet': True,
         }
         try:
@@ -413,7 +414,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     
         file_path = "downloads/video.mp4"
-        command = ["yt-dlp", "-f", "mp4", "-o", file_path, url]
+        command = ["yt-dlp", "--cookies", "cookies.txt", "-f", "mp4", "-o", file_path, url]
         subprocess.run(command, check=True)
 
         if os.path.exists(file_path):
