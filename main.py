@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 conn = sqlite3.connect("bot_data.db", check_same_thread=False)
 c = conn.cursor()
 
+# إنشاء الجداول لو مش موجودة
 c.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
@@ -69,6 +70,7 @@ VIP_PRICE = "5,000 دينار عراقي"
 SPAM_WAIT_SECONDS = 60
 MAX_DAILY_DOWNLOADS = 10
 
+# --- دوال قاعدة البيانات ---
 def is_vip(user_id: int) -> bool:
     c.execute("SELECT vip_expiry FROM vip_users WHERE user_id = ?", (user_id,))
     row = c.fetchone()
@@ -147,46 +149,27 @@ def remove_vip(user_id: int):
     conn.commit()
 
 def download_media(url: str, format_code: str = None) -> str:
-    logger.info(f"بدء تحميل الفيديو من الرابط: {url}")
-
     ydl_opts = {
         "outtmpl": os.path.join(DOWNLOADS_DIR, "%(id)s.%(ext)s"),
         "quiet": True,
         "no_warnings": True,
         "ignoreerrors": True,
-        "format": format_code or "bestvideo+bestaudio/best",
+        "format": format_code or "best",
         "noplaylist": True,
         "retries": 3,
         "cachedir": False,
         "nooverwrites": True,
-        "force_generic_extractor": True,
     }
-
-    if "facebook.com" in url:
-        cookie_path = "facebook_cookies.txt"
-    elif "instagram.com" in url:
-        cookie_path = "instagram_cookies.txt"
-    elif "youtube.com" in url or "youtu.be" in url:
-        cookie_path = "youtube_cookies.txt"
-    else:
-        cookie_path = None
-
-    if cookie_path and os.path.isfile(cookie_path):
-        logger.info(f"استخدام ملف الكوكيز: {cookie_path}")
-        ydl_opts["cookiefile"] = cookie_path
-    else:
-        logger.info("لا يوجد ملف كوكيز مناسب، سيتم التحميل بدون كوكيز")
-
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
-            logger.info(f"تم تحميل الملف: {filename}")
             return filename
     except Exception as e:
         logger.error(f"خطأ في تحميل الفيديو: {e}")
         return None
 
+# --- أزرار القائمة الرئيسية ---
 def main_menu_keyboard(user_id: int):
     buttons = [
         [InlineKeyboardButton("🔢 معرفي (ID)", callback_data="show_id")],
@@ -200,6 +183,7 @@ def main_menu_keyboard(user_id: int):
         buttons.append([InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")])
     return InlineKeyboardMarkup(buttons)
 
+# --- ردود الأزرار ---
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -279,6 +263,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     else:
         await query.edit_message_text("⚠️ خيار غير معروف.")
 
+# --- استقبال نصوص الإدخال للإدارة ---
 async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id != ADMIN_ID:
@@ -302,7 +287,9 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(f"✅ تم إزالة VIP من المستخدم {text}.")
         context.user_data["admin_action"] = None
 
+# --- معالجة تحميل الفيديو ---
 async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # إذا في انتظار إدخال إداري، تجاهل التحميل
     if context.user_data.get("admin_action"):
         return
 
@@ -326,8 +313,8 @@ async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("❌ حدث خطأ أثناء التحميل.")
 
+# --- أوامر البوت ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(f"/start command من المستخدم: {update.effective_user.id}")
     user_id = update.effective_user.id
     add_user_if_not_exists(user_id)
     if is_vip(user_id):
@@ -348,6 +335,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(help_text)
 
+# --- تشغيل البوت ---
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
 
