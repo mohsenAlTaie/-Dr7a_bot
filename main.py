@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.ext import (
-    Application,
+    ApplicationBuilder,
     CommandHandler,
     MessageHandler,
     CallbackQueryHandler,
@@ -32,7 +32,7 @@ DOWNLOADS_DIR = "downloads"
 if not os.path.exists(DOWNLOADS_DIR):
     os.makedirs(DOWNLOADS_DIR)
 
-# قاعدة بيانات SQLite
+# إعداد قاعدة بيانات SQLite
 conn = sqlite3.connect("bot_data.db", check_same_thread=False)
 c = conn.cursor()
 
@@ -52,10 +52,8 @@ CREATE TABLE IF NOT EXISTS vip_users (
 """)
 conn.commit()
 
-# حماية سبام المستخدمين
 user_timestamps = {}
 
-# رسائل ترحيب
 WELCOME_MESSAGES = [
     "🔥 نظام التحميل مفتوح... أدخل رابطك وخلي السرعة تشتغل.",
     "👾 دخلت المنطقة المحظورة... أرسل الرابط يا قرصان.",
@@ -74,7 +72,8 @@ VIP_PRICE = "5,000 دينار عراقي"
 SPAM_WAIT_SECONDS = 10
 MAX_DAILY_DOWNLOADS = 10
 
-# قاعدة بيانات دوال
+# دوال قاعدة البيانات
+
 def is_vip(user_id: int) -> bool:
     c.execute("SELECT vip_expiry FROM vip_users WHERE user_id = ?", (user_id,))
     row = c.fetchone()
@@ -132,7 +131,6 @@ def list_vip_users():
     c.execute("SELECT user_id, vip_expiry FROM vip_users")
     return c.fetchall()
 
-# كيبورد القائمة الرئيسية
 def main_menu_keyboard(user_id: int):
     buttons = [
         [InlineKeyboardButton("🔢 معرفي (ID)", callback_data="show_id")],
@@ -145,42 +143,6 @@ def main_menu_keyboard(user_id: int):
     if user_id == ADMIN_ID:
         buttons.append([InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")])
     return InlineKeyboardMarkup(buttons)
-
-# دالة تحميل الفيديو باستخدام yt-dlp
-def download_media(url: str, format_code: str = None) -> str:
-    ydl_opts = {
-        "outtmpl": os.path.join(DOWNLOADS_DIR, "%(id)s.%(ext)s"),
-        "quiet": True,
-        "no_warnings": True,
-        "ignoreerrors": True,
-        "format": format_code or "bestvideo+bestaudio/best",
-        "noplaylist": True,
-        "retries": 3,
-        "cachedir": False,
-        "nooverwrites": True,
-        "force_generic_extractor": True,
-    }
-
-    if "facebook.com" in url:
-        cookie_path = "facebook_cookies.txt"
-    elif "instagram.com" in url:
-        cookie_path = "instagram_cookies.txt"
-    elif "youtube.com" in url or "youtu.be" in url:
-        cookie_path = "youtube_cookies.txt"
-    else:
-        cookie_path = None
-
-    if cookie_path and os.path.isfile(cookie_path):
-        ydl_opts["cookiefile"] = cookie_path
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-            return filename
-    except Exception as e:
-        logger.error(f"خطأ في تحميل الفيديو: {e}")
-        return None
 
 # أمر /start مع مشاركة البوت وأزرار المطور
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -284,7 +246,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     else:
         await query.edit_message_text("⚠️ خيار غير معروف.")
 
-# إدخال نص الإداري لإضافة أو إزالة VIP
+# إدارة النص الإداري (إضافة/حذف VIP)
 async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id != ADMIN_ID:
@@ -308,7 +270,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(f"✅ تم إزالة VIP من المستخدم {text}.")
         context.user_data["admin_action"] = None
 
-# معالج تحميل الفيديو مع حماية سبام و تمييز TikTok
+# تحميل الفيديو مع دعم TikTok والتحميل العام
 async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     now = time.time()
@@ -320,7 +282,7 @@ async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     user_timestamps[user_id] = now
 
-    # منع التحميل أثناء إدخال إداري
+    # منع تحميل أثناء إدخال إداري
     if context.user_data.get("admin_action"):
         return
 
@@ -330,7 +292,7 @@ async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ هذا الرابط غير مدعوم. أرسل رابط من YouTube أو Facebook أو Instagram أو TikTok.")
         return
 
-    # معالجة TikTok خاصة مع رسائل عشوائية
+    # TikTok مع رسائل عشوائية
     if "tiktok.com" in url:
         weird_messages = [
             "👽 جاري التواصل مع كائنات TikTok الفضائية...",
@@ -364,7 +326,7 @@ async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ فشل التحميل من TikTok:\n{str(e)}")
         return
 
-    # باقي المواقع بتحميل عادي مع yt-dlp subprocess
+    # باقي المواقع بالتحميل عبر yt-dlp subprocess
     await update.message.reply_text("📥 جاري تحميل الفيديو، يرجى الانتظار...")
 
     try:
@@ -393,9 +355,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(help_text)
 
-# نقطة الدخول لتشغيل البوت
 def main():
-    app = Application.builder().token(TOKEN).build()
+    app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CallbackQueryHandler(callback_query_handler))
