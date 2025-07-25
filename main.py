@@ -147,6 +147,8 @@ def remove_vip(user_id: int):
     conn.commit()
 
 def download_media(url: str, format_code: str = None) -> str:
+    logger.info(f"بدء تحميل الفيديو من الرابط: {url}")
+
     ydl_opts = {
         "outtmpl": os.path.join(DOWNLOADS_DIR, "%(id)s.%(ext)s"),
         "quiet": True,
@@ -170,12 +172,16 @@ def download_media(url: str, format_code: str = None) -> str:
         cookie_path = None
 
     if cookie_path and os.path.isfile(cookie_path):
+        logger.info(f"استخدام ملف الكوكيز: {cookie_path}")
         ydl_opts["cookiefile"] = cookie_path
+    else:
+        logger.info("لا يوجد ملف كوكيز مناسب، سيتم التحميل بدون كوكيز")
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
+            logger.info(f"تم تحميل الملف: {filename}")
             return filename
     except Exception as e:
         logger.error(f"خطأ في تحميل الفيديو: {e}")
@@ -321,6 +327,7 @@ async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ حدث خطأ أثناء التحميل.")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"/start command من المستخدم: {update.effective_user.id}")
     user_id = update.effective_user.id
     add_user_if_not_exists(user_id)
     if is_vip(user_id):
