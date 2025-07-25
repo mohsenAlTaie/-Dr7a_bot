@@ -20,7 +20,7 @@ from telegram.ext import (
 )
 import yt_dlp
 
-BOT_TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
+BOT_TOKEN = "8444492438:AAGH0f5wTCYiie3Vhv9d8rlv1i4LvR6VMW4"
 ADMIN_ID = 7249021797
 
 DOWNLOADS_DIR = "downloads"
