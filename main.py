@@ -1,48 +1,57 @@
 import os
-import random
-import logging
-import time
 import sqlite3
+import logging
+import random
+import time
 from datetime import datetime, timedelta
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.constants import ParseMode
+
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    ParseMode,
+)
 from telegram.ext import (
-    ApplicationBuilder,
+    Application,
     CommandHandler,
     MessageHandler,
     CallbackQueryHandler,
     filters,
     ContextTypes,
 )
-import yt_dlp
-import subprocess
-import asyncio
 
+import yt_dlp
+
+# إعداد اللوج لسهولة تتبع الأخطاء
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
-logger = logging.getLogger(__name__)
 
-TOKEN = "8444492438:AAGH0f5wTCYiie3Vhv9d8rlv1i4LvR6VMW4"
-BOT_USERNAME = "Dr7a_bot"
+# توكن البوت والمعرف الأدمن
+TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
 ADMIN_ID = 7249021797
 
-DOWNLOADS_DIR = "downloads"
-os.makedirs(DOWNLOADS_DIR, exist_ok=True)
+# إنشاء مجلد للتحميلات إن لم يكن موجوداً
+if not os.path.exists("downloads"):
+    os.makedirs("downloads")
 
+# اتصال بقاعدة بيانات SQLite (ملف bot_data.db)
 conn = sqlite3.connect("bot_data.db", check_same_thread=False)
-c = conn.cursor()
+cursor = conn.cursor()
 
-# إنشاء الجداول
-c.execute("""
+# إنشاء الجداول لو غير موجودة
+cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
-    daily_downloads INTEGER DEFAULT 0,
+    downloads_today INTEGER DEFAULT 0,
     last_download_time INTEGER DEFAULT 0,
-    points INTEGER DEFAULT 0
+    points INTEGER DEFAULT 0,
+    free_downloads INTEGER DEFAULT 0,
+    last_reset TEXT DEFAULT ''
 )
 """)
-c.execute("""
+
+cursor.execute("""
 CREATE TABLE IF NOT EXISTS vip_users (
     user_id INTEGER PRIMARY KEY,
     vip_expiry TEXT
@@ -50,316 +59,438 @@ CREATE TABLE IF NOT EXISTS vip_users (
 """)
 conn.commit()
 
-user_timestamps = {}
-
 WELCOME_MESSAGES = [
     "🔥 نظام التحميل مفتوح... أدخل رابطك وخلي السرعة تشتغل.",
     "👾 دخلت المنطقة المحظورة... أرسل الرابط يا قرصان.",
-    "🚀 استعد للتحميل السريع... هيا أرسل الرابط.",
-    "🛸 بوت التحميل الفضائي هنا، شاركنا رابط الفيديو.",
-    "🕵️‍♂️ الكنز الرقمي بين يديك، أرسل الرابط."
+    "⚡️ سرعة الصاروخ جاهزة، أرسل رابط الفيديو!",
+    "🎮 حان وقت تحميل الفيديوهات، شارك الرابط!",
+    "🌪️ العاصفة الرقمية بدأت، رابطك بعد؟"
 ]
 
-VIP_WELCOME_MESSAGES = [
-    "✨ أهلاً يا VIP! التحميل عندك بلا حدود ولا انتظار.",
-    "👑 مرحباً بالسيد المحترف، سرعة التحميل معك الآن.",
-    "⚡ VIP يا غالي، التحميل صاروخي بدون تأخير!",
-]
+DAILY_LIMIT = 10
+SPAM_DELAY = 60
 
-VIP_PRICE = "5,000 دينار عراقي"
-SPAM_WAIT_SECONDS = 10
-MAX_DAILY_DOWNLOADS = 10
 
-WEIRD_MESSAGES = [
-    "👽 جاري التواصل مع كائنات TikTok الفضائية...",
-    "🔮 فتح بوابة الزمن الرقمي...",
-    "🧪 خلط فيديوهات TikTok في المختبر السري...",
-    "🐍 استدعاء تنين TikTok لتحميل الفيديو...",
-    "📡 التقاط إشارة من سيرفرات الصين...",
-    "🚀 تحميل الفيديو بسرعة تتجاوز سرعة الضوء... تقريبًا",
-    "🧠 استخدام الذكاء الاصطناعي لفك شيفرة الرابط...",
-    "💿 إدخال قرص TikTok داخل مشغل VHS الفضائي...",
-    "👾 استدعاء روبوت التحميل من بعد آخر...",
-    "🍕 رش جبنة على الرابط للحصول على نكهة أفضل للفيديو...",
-    "🎩 تحويل الرابط إلى أرنب وسحبه من القبعة...",
-    "🐢 تحميل الفيديو... بسرعة سلحفاة نينجا 🐢 (امزح، هو سريع!)"
-]
-
-# --- دوال قاعدة البيانات ---
 def is_vip(user_id: int) -> bool:
-    c.execute("SELECT vip_expiry FROM vip_users WHERE user_id = ?", (user_id,))
-    row = c.fetchone()
+    cursor.execute("SELECT vip_expiry FROM vip_users WHERE user_id=?", (user_id,))
+    row = cursor.fetchone()
     if row:
-        expiry_dt = datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S")
-        if expiry_dt > datetime.now():
-            return True
-        else:
-            c.execute("DELETE FROM vip_users WHERE user_id = ?", (user_id,))
-            conn.commit()
+        expiry_str = row[0]
+        if expiry_str:
+            try:
+                expiry = datetime.fromisoformat(expiry_str)
+                if expiry > datetime.now():
+                    return True
+                else:
+                    cursor.execute("DELETE FROM vip_users WHERE user_id=?", (user_id,))
+                    conn.commit()
+            except:
+                # إذا شكل التاريخ غير صحيح، نحذفه كإجراء أمان
+                cursor.execute("DELETE FROM vip_users WHERE user_id=?", (user_id,))
+                conn.commit()
     return False
 
-def add_user_if_not_exists(user_id: int):
-    c.execute("SELECT 1 FROM users WHERE user_id = ?", (user_id,))
-    if not c.fetchone():
-        c.execute("INSERT INTO users (user_id) VALUES (?)", (user_id,))
-        conn.commit()
 
-def can_download(user_id: int) -> (bool, str):
-    add_user_if_not_exists(user_id)
-    if is_vip(user_id):
-        return True, ""
-    c.execute("SELECT daily_downloads, last_download_time FROM users WHERE user_id = ?", (user_id,))
-    daily_downloads, last_time = c.fetchone()
+def get_user(user_id: int):
+    cursor.execute("SELECT downloads_today, last_download_time, points, free_downloads, last_reset FROM users WHERE user_id=?", (user_id,))
+    row = cursor.fetchone()
+    if row:
+        downloads_today, last_download_time, points, free_downloads, last_reset = row
+        return {
+            "downloads_today": downloads_today,
+            "last_download_time": last_download_time,
+            "points": points,
+            "free_downloads": free_downloads,
+            "last_reset": last_reset
+        }
+    else:
+        cursor.execute("INSERT INTO users (user_id) VALUES (?)", (user_id,))
+        conn.commit()
+        return {
+            "downloads_today": 0,
+            "last_download_time": 0,
+            "points": 0,
+            "free_downloads": 0,
+            "last_reset": ''
+        }
+
+
+def update_user(user_id: int, **kwargs):
+    fields = []
+    values = []
+    for key, val in kwargs.items():
+        fields.append(f"{key}=?")
+        values.append(val)
+    values.append(user_id)
+    sql = f"UPDATE users SET {', '.join(fields)} WHERE user_id=?"
+    cursor.execute(sql, values)
+    conn.commit()
+
+
+def reset_daily_counts():
+    now_str = datetime.now().strftime("%Y-%m-%d")
+    cursor.execute("SELECT user_id, last_reset FROM users")
+    users = cursor.fetchall()
+    for user_id, last_reset in users:
+        if last_reset != now_str:
+            cursor.execute(
+                "UPDATE users SET downloads_today=0, last_reset=? WHERE user_id=?",
+                (now_str, user_id),
+            )
+    conn.commit()
+
+
+def can_download(user_id: int, is_vip_user: bool) -> (bool, str):
+    user = get_user(user_id)
     now_ts = int(time.time())
-    if daily_downloads >= MAX_DAILY_DOWNLOADS:
-        return False, "❌ وصلت الحد اليومي 10 تحميلات.\nاشترك في VIP لتحميل بلا حدود."
-    if now_ts - last_time < SPAM_WAIT_SECONDS:
-        remaining = SPAM_WAIT_SECONDS - (now_ts - last_time)
-        return False, f"⏱️ انتظر قليلاً، تستطيع التحميل بعد {remaining} ثانية."
+    if not is_vip_user:
+        last_time = user["last_download_time"]
+        if now_ts - last_time < SPAM_DELAY:
+            wait_time = SPAM_DELAY - (now_ts - last_time)
+            return False, f"⏱️ انتظر شوي حبي، تقدر تحمل بعد {wait_time} ثانية."
     return True, ""
 
-def record_download(user_id: int):
-    add_user_if_not_exists(user_id)
-    if not is_vip(user_id):
-        now_ts = int(time.time())
-        c.execute(
-            "UPDATE users SET daily_downloads = daily_downloads + 1, last_download_time = ? WHERE user_id = ?",
-            (now_ts, user_id)
-        )
-        conn.commit()
 
-def add_vip(user_id: int, days: int = 30):
-    expiry = datetime.now() + timedelta(days=days)
-    c.execute("REPLACE INTO vip_users (user_id, vip_expiry) VALUES (?, ?)",
-              (user_id, expiry.strftime("%Y-%m-%d %H:%M:%S")))
-    conn.commit()
+def can_download_limit(user_id: int, is_vip_user: bool) -> (bool, str):
+    user = get_user(user_id)
+    reset_daily_counts()
+    if not is_vip_user:
+        total_allowed = DAILY_LIMIT + user["free_downloads"]
+        if user["downloads_today"] >= total_allowed:
+            return False, "❌ وصلت الحد اليومي. اشترك في VIP للتحميل بلا حدود."
+    return True, ""
 
-def remove_vip(user_id: int):
-    c.execute("DELETE FROM vip_users WHERE user_id = ?", (user_id,))
-    conn.commit()
 
-def list_vip_users():
-    c.execute("SELECT user_id, vip_expiry FROM vip_users")
-    return c.fetchall()
+def after_download_success(user_id: int):
+    user = get_user(user_id)
+    now_ts = int(time.time())
+    new_downloads = user["downloads_today"] + 1
+    new_free_downloads = max(0, user["free_downloads"] - 1) if user["free_downloads"] > 0 else 0
+    update_user(
+        user_id,
+        downloads_today=new_downloads,
+        last_download_time=now_ts,
+        free_downloads=new_free_downloads
+    )
 
-# --- كيبورد القائمة الرئيسية ---
-def main_menu_keyboard(user_id: int):
+
+def add_points(user_id: int, points_to_add: int):
+    user = get_user(user_id)
+    new_points = user["points"] + points_to_add
+    update_user(user_id, points=new_points)
+
+
+def use_point_for_free_download(user_id: int) -> bool:
+    user = get_user(user_id)
+    if user["points"] >= 3:
+        new_points = user["points"] - 3
+        new_free_downloads = user["free_downloads"] + 3
+        update_user(user_id, points=new_points, free_downloads=new_free_downloads)
+        return True
+    return False
+
+
+def random_welcome():
+    return random.choice(WELCOME_MESSAGES)
+
+
+def main_keyboard(is_vip_user: bool):
     buttons = [
-        [InlineKeyboardButton("🔢 معرفي (ID)", callback_data="show_id")],
+        [InlineKeyboardButton("🔹 معرفي (ID)", callback_data="show_id")],
         [InlineKeyboardButton("🎰 اكسب تحميلات مجانية!", callback_data="earn_points")],
-        [InlineKeyboardButton("🛡️ مميزات VIP", callback_data="show_vip_features")],
-        [InlineKeyboardButton("💳 اشترك الآن", callback_data="subscribe_now")],
+        [InlineKeyboardButton("⭐️ مميزات VIP", callback_data="vip_features")],
+        [InlineKeyboardButton("🛒 اشترك الآن (5 ألف عراقي)", url="https://t.me/K0_MG")],
     ]
-    if is_vip(user_id):
-        buttons.append([InlineKeyboardButton("⚡️ تسريع التحميل", callback_data="speed_up")])
-    if user_id == ADMIN_ID:
+    if is_vip_user:
+        buttons.append([InlineKeyboardButton("⏩ تسريع التحميل", callback_data="speed_up")])
+    if ADMIN_ID:
         buttons.append([InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")])
     return InlineKeyboardMarkup(buttons)
 
-# --- أوامر البوت ---
+
+def admin_keyboard():
+    buttons = [
+        [InlineKeyboardButton("➕ إضافة VIP", callback_data="admin_add_vip")],
+        [InlineKeyboardButton("🗑️ حذف VIP", callback_data="admin_remove_vip")],
+        [InlineKeyboardButton("📋 قائمة المشتركين", callback_data="admin_list_users")],
+    ]
+    return InlineKeyboardMarkup(buttons)
+
+
+async def download_media(url: str, download_type: str = "video") -> str:
+    ydl_opts = {
+        "outtmpl": "downloads/%(id)s.%(ext)s",
+        "quiet": True,
+        "no_warnings": True,
+        "format": "bestvideo+bestaudio/best",
+        "merge_output_format": "mp4",
+        "noplaylist": True,
+    }
+
+    if download_type == "audio":
+        ydl_opts.update({
+            "format": "bestaudio/best",
+            "postprocessors": [{
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }],
+            "outtmpl": "downloads/%(id)s.mp3",
+        })
+    elif download_type == "shorts":
+        ydl_opts.update({
+            "format": "bestvideo[height<=1440]+bestaudio/best[height<=1440]",
+            "outtmpl": "downloads/%(id)s.%(ext)s",
+            "noplaylist": True,
+        })
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            return filename
+    except Exception as e:
+        logging.error(f"Download error: {e}")
+        return None
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    add_user_if_not_exists(user_id)
-    keyboard = [
-        [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
-        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    if is_vip(user_id):
-        text = random.choice(VIP_WELCOME_MESSAGES) + "\n\n🎉 أنت عضو VIP وتم تفعيل التحميل بلا حدود وسرعة التحميل العالية."
+    vip_status = is_vip(user_id)
+    text = random_welcome()
+    if vip_status:
+        text += "\n\n🎉 أنت مشترك VIP! استمتع بالتحميل بدون حدود وبسرعة عالية."
     else:
-        text = (
-            "👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*\n\n"
-            "هل أنت مستعدّ لاختراق عوالم الفيديوهات من فيسبوك، يوتيوب، إنستغرام، وتيك توك؟ 🚀📥\n"
-            "هنا حيث تنصهر الروابط وتولد الملفات! 🌐🔥\n\n"
-            "📎 فقط أرسل الرابط، وسأقوم بالباقي... لا حاجة للشرح، فقط الثقة 💼🤖\n\n"
-            "🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻"
-        )
-    await update.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+        text += f"\n\n🚦 الحد اليومي للمستخدم العادي هو {DAILY_LIMIT} تحميلات."
+    keyboard = main_keyboard(vip_status)
+    await update.message.reply_text(text, reply_markup=keyboard)
 
-async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
-    await query.answer()
-    data = query.data
+    vip_status = is_vip(user_id)
 
-    if data == "show_id":
-        await query.edit_message_text(f"🔢 معرفك في البوت هو: `{user_id}`", parse_mode="Markdown")
+    if query.data == "show_id":
+        await query.answer()
+        await query.edit_message_text(f"🆔 معرفك في تيليجرام هو: <code>{user_id}</code>", parse_mode=ParseMode.HTML)
 
-    elif data == "earn_points":
-        bot_link = f"https://t.me/{BOT_USERNAME}"
-        text = (
-            "🎰 اكسب تحميلات مجانية!\n\n"
-            "شارك البوت مع 3 أصدقاء لتحصل على 3 نقاط (= 3 تحميلات مجانية).\n"
-            "اضغط زر المشاركة بالأسفل."
-        )
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("شارك البوت", url=bot_link)],
-            [InlineKeyboardButton("↩️ العودة", callback_data="back_main")],
-        ])
-        await query.edit_message_text(text, reply_markup=keyboard)
+    elif query.data == "earn_points":
+        await query.answer()
+        text = ("🎯 شارك البوت مع 3 أصدقاء لتحصل على 3 نقاط = 3 تحميلات مجانية!\n\n"
+                "✅ بعد المشاركة، أرسل لي رابط فيديو لتحميله مجاناً!")
+        await query.edit_message_text(text, reply_markup=main_keyboard(vip_status))
 
-    elif data == "show_vip_features":
-        await query.edit_message_text(
-            "مميزات VIP:\n"
-            "- تحميل غير محدود\n"
-            "- سرعة تحميل أعلى\n"
-            f"- السعر: {VIP_PRICE}\n"
-            "للاشتراك تواصل مع المطور @K0_MG",
-        )
+    elif query.data == "vip_features":
+        await query.answer()
+        text = ("🌟 مميزات VIP:\n"
+                "- تحميل غير محدود.\n"
+                "- سرعة تحميل أعلى مع زر تسريع التحميل.\n"
+                "- لا قيود زمنية بين التحميلات.\n"
+                "- دعم خاص من المطور.\n\n"
+                "اشترك الآن للاستفادة من المميزات!")
+        await query.edit_message_text(text, reply_markup=main_keyboard(vip_status))
 
-    elif data == "subscribe_now":
-        await query.edit_message_text(
-            "للاشتراك VIP، اضغط زر الدفع التالي وتواصل مع المطور.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💰 اشترك VIP الآن", url="https://t.me/K0_MG")]]),
-        )
+    elif query.data == "speed_up":
+        await query.answer("✅ تم تفعيل تسريع التحميل!")
+        context.user_data["speed_up"] = True
+        await query.edit_message_text("⏩ تم تفعيل تسريع التحميل! أرسل رابط الفيديو لتحميله بسرعة عالية.")
 
-    elif data == "speed_up":
-        if is_vip(user_id):
-            await query.edit_message_text("⚡️ تم تفعيل تسريع التحميل. عند إرسال الرابط التالي، سيتم تحميل الملف بأقصى سرعة دون انتظار.")
+    elif query.data == "admin_panel":
+        if user_id == ADMIN_ID:
+            await query.answer()
+            await query.edit_message_text("⚙️ لوحة تحكم الإدارة:", reply_markup=admin_keyboard())
         else:
-            await query.edit_message_text("❌ فقط المشتركين VIP يمكنهم استخدام تسريع التحميل.")
+            await query.answer("❌ أنت لست الأدمن.", show_alert=True)
 
-    elif data == "admin_panel" and user_id == ADMIN_ID:
-        buttons = [
-            [InlineKeyboardButton("➕ إضافة VIP", callback_data="admin_add_vip")],
-            [InlineKeyboardButton("🗑️ حذف VIP", callback_data="admin_remove_vip")],
-            [InlineKeyboardButton("📋 قائمة VIP", callback_data="admin_list_vip")],
-            [InlineKeyboardButton("↩️ العودة", callback_data="back_main")],
-        ]
-        await query.edit_message_text("⚙️ لوحة تحكم الإدارة", reply_markup=InlineKeyboardMarkup(buttons))
-
-    elif data == "admin_add_vip" and user_id == ADMIN_ID:
-        await query.edit_message_text("📥 أرسل معرف المستخدم الذي تريد إضافة VIP له:")
-        context.user_data["admin_action"] = "add_vip"
-
-    elif data == "admin_remove_vip" and user_id == ADMIN_ID:
-        await query.edit_message_text("🗑️ أرسل معرف المستخدم الذي تريد حذف VIP له:")
-        context.user_data["admin_action"] = "remove_vip"
-
-    elif data == "admin_list_vip" and user_id == ADMIN_ID:
-        vips = list_vip_users()
-        if not vips:
-            await query.edit_message_text("📋 لا يوجد مستخدمين VIP حالياً.")
+    elif query.data == "admin_add_vip":
+        if user_id == ADMIN_ID:
+            context.user_data["admin_action"] = "add_vip"
+            await query.answer()
+            await query.edit_message_text("أرسل معرف المستخدم الذي تريد إضافته VIP:")
         else:
-            text = "📋 قائمة مستخدمي VIP:\n"
-            for uid, expiry in vips:
-                text += f"- {uid} | ينتهي: {expiry}\n"
-            await query.edit_message_text(text)
+            await query.answer("❌ أنت لست الأدمن.", show_alert=True)
 
-    elif data == "back_main":
-        await query.edit_message_text(
-            random.choice(VIP_WELCOME_MESSAGES) if is_vip(user_id) else random.choice(WELCOME_MESSAGES),
-            reply_markup=main_menu_keyboard(user_id),
-        )
+    elif query.data == "admin_remove_vip":
+        if user_id == ADMIN_ID:
+            context.user_data["admin_action"] = "remove_vip"
+            await query.answer()
+            await query.edit_message_text("أرسل معرف المستخدم الذي تريد إزالة VIP عنه:")
+        else:
+            await query.answer("❌ أنت لست الأدمن.", show_alert=True)
+
+    elif query.data == "admin_list_users":
+        if user_id == ADMIN_ID:
+            await query.answer()
+            cursor.execute("SELECT user_id FROM vip_users")
+            vip_rows = cursor.fetchall()
+            vip_list = "\n".join(str(row[0]) for row in vip_rows) or "لا يوجد مشتركين VIP حالياً."
+            await query.edit_message_text(f"قائمة المشتركين VIP:\n{vip_list}")
+        else:
+            await query.answer("❌ أنت لست الأدمن.", show_alert=True)
+
     else:
-        await query.edit_message_text("⚠️ خيار غير معروف.")
+        await query.answer()
+
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    text = update.message.text.strip()
+    vip_status = is_vip(user_id)
+
+    allowed, msg_limit = can_download_limit(user_id, vip_status)
+    if not allowed:
+        await update.message.reply_text(msg_limit)
+        return
+
+    allowed, msg_spam = can_download(user_id, vip_status)
+    if not allowed:
+        await update.message.reply_text(msg_spam)
+        return
+
+    speed_up = context.user_data.get("speed_up", False)
+
+    if not any(domain in text.lower() for domain in ("youtube.com", "youtu.be", "facebook.com", "fb.watch", "tiktok.com", "instagram.com")):
+        await update.message.reply_text("❌ الرابط غير مدعوم. الرجاء إرسال رابط من YouTube، Facebook، TikTok، أو Instagram.")
+        return
+
+    # خاص باليوتيوب: نطلب نوع التحميل
+    if "youtube.com" in text.lower() or "youtu.be" in text.lower():
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("🎧 صوت فقط", callback_data=f"download_audio|{text}"),
+                InlineKeyboardButton("🎥 فيديو كامل", callback_data=f"download_video|{text}"),
+                InlineKeyboardButton("📱 شورتس", callback_data=f"download_shorts|{text}"),
+            ]
+        ])
+        await update.message.reply_text("اختر نوع التحميل:", reply_markup=keyboard)
+        return
+    else:
+        await update.message.reply_text(random.choice(WELCOME_MESSAGES))
+
+        filename = await download_media(text, "video")
+        if not filename:
+            await update.message.reply_text("❌ حدث خطأ أثناء التحميل. حاول لاحقاً.")
+            return
+
+        try:
+            if speed_up:
+                await update.message.reply_video(open(filename, "rb"))
+            else:
+                with open(filename, "rb") as video_file:
+                    await update.message.reply_video(video_file)
+        except Exception as e:
+            logging.error(f"Error sending file: {e}")
+            await update.message.reply_text("❌ حدث خطأ أثناء إرسال الملف.")
+            return
+
+        after_download_success(user_id)
+        context.user_data["speed_up"] = False
+
+        try:
+            os.remove(filename)
+        except:
+            pass
+
+
+async def download_choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    data = query.data.split("|")
+    action = data[0]
+    url = data[1]
+
+    vip_status = is_vip(user_id)
+    speed_up = context.user_data.get("speed_up", False)
+
+    allowed, msg_limit = can_download_limit(user_id, vip_status)
+    if not allowed:
+        await query.answer()
+        await query.edit_message_text(msg_limit)
+        return
+
+    allowed, msg_spam = can_download(user_id, vip_status)
+    if not allowed:
+        await query.answer()
+        await query.edit_message_text(msg_spam)
+        return
+
+    await query.answer()
+    await query.edit_message_text("⏳ جاري التحميل... انتظر لحظة من فضلك.")
+
+    download_type_map = {
+        "download_audio": "audio",
+        "download_video": "video",
+        "download_shorts": "shorts"
+    }
+
+    download_type = download_type_map.get(action, "video")
+
+    filename = await download_media(url, download_type)
+    if not filename:
+        await query.edit_message_text("❌ حدث خطأ أثناء التحميل. حاول لاحقاً.")
+        return
+
+    try:
+        if download_type == "audio":
+            await query.message.reply_audio(open(filename, "rb"))
+        else:
+            await query.message.reply_video(open(filename, "rb"))
+    except Exception as e:
+        logging.error(f"Error sending file: {e}")
+        await query.edit_message_text("❌ حدث خطأ أثناء إرسال الملف.")
+        return
+
+    after_download_success(user_id)
+    context.user_data["speed_up"] = False
+
+    try:
+        os.remove(filename)
+    except:
+        pass
+
 
 async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    text = update.message.text.strip()
     if user_id != ADMIN_ID:
         return
+
     action = context.user_data.get("admin_action")
-    if not action:
-        return
-    text = update.message.text.strip()
     if action == "add_vip":
-        if not text.isdigit():
-            await update.message.reply_text("❌ المعرف يجب أن يكون رقم فقط.")
-            return
-        add_vip(int(text))
-        await update.message.reply_text(f"✅ تمت إضافة VIP للمستخدم {text} لمدة 30 يوم.")
-        context.user_data["admin_action"] = None
-    elif action == "remove_vip":
-        if not text.isdigit():
-            await update.message.reply_text("❌ المعرف يجب أن يكون رقم فقط.")
-            return
-        remove_vip(int(text))
-        await update.message.reply_text(f"✅ تم إزالة VIP من المستخدم {text}.")
-        context.user_data["admin_action"] = None
-
-async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.user_data.get("admin_action"):
-        return
-
-    url = update.message.text.strip()
-    user_id = update.effective_user.id
-
-    add_user_if_not_exists(user_id)
-
-    if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
-        await update.message.reply_text("❌ هذا الرابط غير مدعوم. أرسل رابط من YouTube أو Facebook أو Instagram أو TikTok.")
-        return
-
-    # حماية سبام فقط للمستخدم العادي
-    if not is_vip(user_id):
-        now = time.time()
-        if user_id in user_timestamps and now - user_timestamps[user_id] < SPAM_WAIT_SECONDS:
-            await update.message.reply_text(f"⏳ الرجاء الانتظار {int(SPAM_WAIT_SECONDS - (now - user_timestamps[user_id]))} ثانية قبل إرسال رابط جديد.")
-            return
-        user_timestamps[user_id] = now
-
-    await update.message.reply_text("⏳ جاري تحميل الفيديو... انتظر قليلاً.")
-
-    # تأخير تحميل للمستخدم العادي (بطئ)
-    if not is_vip(user_id):
-        await asyncio.sleep(5)
-
-    if "tiktok.com" in url:
-        loading_msg = random.choice(WEIRD_MESSAGES)
-        await update.message.reply_text(f"{loading_msg}\n⏳ جاري تحميل الفيديو...")
-        ydl_opts = {
-            'outtmpl': os.path.join(DOWNLOADS_DIR, '%(id)s.%(ext)s'),
-            'format': 'mp4',
-            'quiet': True,
-        }
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                file_path = ydl.prepare_filename(info)
-            await update.message.reply_video(video=open(file_path, 'rb'))
-            record_download(user_id)
-            os.remove(file_path)
+            new_vip_id = int(text)
+            expiry_date = (datetime.now() + timedelta(days=30)).isoformat()
+            cursor.execute("INSERT OR REPLACE INTO vip_users (user_id, vip_expiry) VALUES (?, ?)", (new_vip_id, expiry_date))
+            conn.commit()
+            await update.message.reply_text(f"تمت إضافة المستخدم {new_vip_id} كمشترك VIP حتى {expiry_date}.")
         except Exception as e:
-            await update.message.reply_text(f"❌ فشل التحميل من TikTok:\n{str(e)}")
-        return
+            await update.message.reply_text("خطأ: الرجاء إرسال معرف مستخدم صحيح.")
+        context.user_data["admin_action"] = None
 
-    # تحميل باقي المواقع عبر yt-dlp subprocess
-    try:
-        file_path = os.path.join(DOWNLOADS_DIR, "video.mp4")
-        command = ["yt-dlp", "-f", "mp4", "-o", file_path, url]
-        subprocess.run(command, check=True)
+    elif action == "remove_vip":
+        try:
+            remove_vip_id = int(text)
+            cursor.execute("DELETE FROM vip_users WHERE user_id=?", (remove_vip_id,))
+            conn.commit()
+            await update.message.reply_text(f"تم حذف الاشتراك VIP للمستخدم {remove_vip_id}.")
+        except Exception as e:
+            await update.message.reply_text("خطأ: الرجاء إرسال معرف مستخدم صحيح.")
+        context.user_data["admin_action"] = None
 
-        if os.path.exists(file_path):
-            with open(file_path, "rb") as video_file:
-                await update.message.reply_video(video=video_file)
-            record_download(user_id)
-            os.remove(file_path)
-        else:
-            await update.message.reply_text("❌ لم يتم العثور على الملف بعد التحميل.")
-    except subprocess.CalledProcessError as e:
-        await update.message.reply_text(f"❌ خطأ أثناء تحميل الفيديو:\n{str(e)}")
-    except Exception as e:
-        await update.message.reply_text(f"❌ خطأ غير متوقع:\n{str(e)}")
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_text = (
-        "أرسل رابط فيديو من YouTube أو TikTok أو Facebook أو Instagram لتحميله.\n"
-        "المستخدم العادي محدود بـ10 تحميلات يومياً مع انتظار 10 ثوانٍ بين كل تحميل.\n"
-        "VIP تحميل غير محدود وتسريع تحميل.\n"
-        "/start - لبدء المحادثة\n"
-        "/help - لعرض هذه المساعدة\n"
-    )
-    await update.message.reply_text(help_text)
+async def main():
+    application = Application.builder().token(TOKEN).build()
 
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CallbackQueryHandler(callback_query_handler))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), admin_text_handler))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), download_handler))
-    app.run_polling()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(download_choice_handler, pattern="^download_"))
+    application.add_handler(CallbackQueryHandler(button_handler))
+    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), admin_text_handler))
+
+    print("البوت بدأ بنجاح...")
+    await application.run_polling()
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
