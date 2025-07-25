@@ -15,6 +15,7 @@ from telegram.ext import (
     ContextTypes,
 )
 import yt_dlp
+import subprocess
 
 # إعداد اللوج
 logging.basicConfig(
@@ -394,4 +395,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # نقطة الدخول لتشغيل البوت
 def main():
-    app = Application.builder().token(T
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CallbackQueryHandler(callback_query_handler))
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), admin_text_handler))
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), download_handler))
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
