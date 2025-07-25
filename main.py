@@ -15,7 +15,7 @@ logging.basicConfig(
 
 # توكن البوت الموحد
 TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
-BOT_USERNAME = "Dr7a_bot"  # استبدله إذا تغيّر
+BOT_USERNAME = "Dr7a_bot"
 
 # إنشاء مجلد التحميل
 if not os.path.exists("downloads"):
@@ -100,7 +100,7 @@ async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         file_path = "downloads/video.mp4"
-        command = ["yt-dlp", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best", "-o", file_path, url]
+        command = ["yt-dlp", "-f", "best[ext=mp4]/best", "-o", file_path, url]
         subprocess.run(command, check=True)
 
         if os.path.exists(file_path):
