@@ -1,13 +1,17 @@
 import os
-import random
-import logging
-import time
 import sqlite3
+import logging
+import random
+import time
 from datetime import datetime, timedelta
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.constants import ParseMode
+
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 from telegram.ext import (
-    ApplicationBuilder,
+    Application,
     CommandHandler,
     MessageHandler,
     CallbackQueryHandler,
@@ -15,24 +19,22 @@ from telegram.ext import (
     ContextTypes,
 )
 import yt_dlp
-import subprocess
+
+BOT_TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
+ADMIN_ID = 7249021797
+
+DOWNLOADS_DIR = "downloads"
+if not os.path.exists(DOWNLOADS_DIR):
+    os.makedirs(DOWNLOADS_DIR)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-TOKEN = "8444492438:AAGH0f5wTCYiie3Vhv9d8rlv1i4LvR6VMW4"
-BOT_USERNAME = "Dr7a_bot"
-ADMIN_ID = 7249021797
-
-DOWNLOADS_DIR = "downloads"
-os.makedirs(DOWNLOADS_DIR, exist_ok=True)
-
 conn = sqlite3.connect("bot_data.db", check_same_thread=False)
 c = conn.cursor()
 
-# إنشاء الجداول (مرة واحدة)
 c.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
@@ -49,8 +51,6 @@ CREATE TABLE IF NOT EXISTS vip_users (
 """)
 conn.commit()
 
-user_timestamps = {}
-
 WELCOME_MESSAGES = [
     "🔥 نظام التحميل مفتوح... أدخل رابطك وخلي السرعة تشتغل.",
     "👾 دخلت المنطقة المحظورة... أرسل الرابط يا قرصان.",
@@ -66,24 +66,25 @@ VIP_WELCOME_MESSAGES = [
 ]
 
 VIP_PRICE = "5,000 دينار عراقي"
-SPAM_WAIT_SECONDS = 10
+SPAM_WAIT_SECONDS = 60
 MAX_DAILY_DOWNLOADS = 10
 
-# --- دوال قاعدة البيانات ---
 def is_vip(user_id: int) -> bool:
     c.execute("SELECT vip_expiry FROM vip_users WHERE user_id = ?", (user_id,))
     row = c.fetchone()
     if row:
-        expiry_dt = datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S")
+        expiry_str = row[0]
+        expiry_dt = datetime.strptime(expiry_str, "%Y-%m-%d %H:%M:%S")
         if expiry_dt > datetime.now():
             return True
         else:
             c.execute("DELETE FROM vip_users WHERE user_id = ?", (user_id,))
             conn.commit()
+            return False
     return False
 
 def add_user_if_not_exists(user_id: int):
-    c.execute("SELECT 1 FROM users WHERE user_id = ?", (user_id,))
+    c.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
     if not c.fetchone():
         c.execute("INSERT INTO users (user_id) VALUES (?)", (user_id,))
         conn.commit()
@@ -93,7 +94,8 @@ def can_download(user_id: int) -> (bool, str):
     if is_vip(user_id):
         return True, ""
     c.execute("SELECT daily_downloads, last_download_time FROM users WHERE user_id = ?", (user_id,))
-    daily_downloads, last_time = c.fetchone()
+    row = c.fetchone()
+    daily_downloads, last_time = row
     now_ts = int(time.time())
     if daily_downloads >= MAX_DAILY_DOWNLOADS:
         return False, "❌ وصلت الحد اليومي 10 تحميلات.\nاشترك في VIP لتحميل بلا حدود."
@@ -106,27 +108,85 @@ def record_download(user_id: int):
     add_user_if_not_exists(user_id)
     if not is_vip(user_id):
         now_ts = int(time.time())
-        c.execute(
-            "UPDATE users SET daily_downloads = daily_downloads + 1, last_download_time = ? WHERE user_id = ?",
-            (now_ts, user_id)
-        )
+        c.execute("UPDATE users SET daily_downloads = daily_downloads + 1, last_download_time = ? WHERE user_id = ?", (now_ts, user_id))
         conn.commit()
+
+def add_points(user_id: int, pts: int):
+    add_user_if_not_exists(user_id)
+    c.execute("UPDATE users SET points = points + ? WHERE user_id = ?", (pts, user_id))
+    conn.commit()
+
+def get_user_points(user_id: int) -> int:
+    add_user_if_not_exists(user_id)
+    c.execute("SELECT points FROM users WHERE user_id = ?", (user_id,))
+    row = c.fetchone()
+    return row[0] if row else 0
+
+def use_points(user_id: int, pts: int) -> bool:
+    current = get_user_points(user_id)
+    if current >= pts:
+        c.execute("UPDATE users SET points = points - ? WHERE user_id = ?", (pts, user_id))
+        conn.commit()
+        return True
+    return False
+
+def list_vip_users():
+    c.execute("SELECT user_id, vip_expiry FROM vip_users")
+    return c.fetchall()
 
 def add_vip(user_id: int, days: int = 30):
     expiry = datetime.now() + timedelta(days=days)
-    c.execute("REPLACE INTO vip_users (user_id, vip_expiry) VALUES (?, ?)",
-              (user_id, expiry.strftime("%Y-%m-%d %H:%M:%S")))
+    c.execute(
+        "REPLACE INTO vip_users (user_id, vip_expiry) VALUES (?, ?)",
+        (user_id, expiry.strftime("%Y-%m-%d %H:%M:%S")),
+    )
     conn.commit()
 
 def remove_vip(user_id: int):
     c.execute("DELETE FROM vip_users WHERE user_id = ?", (user_id,))
     conn.commit()
 
-def list_vip_users():
-    c.execute("SELECT user_id, vip_expiry FROM vip_users")
-    return c.fetchall()
+def download_media(url: str, format_code: str = None) -> str:
+    logger.info(f"بدء تحميل الفيديو من الرابط: {url}")
 
-# --- كيبورد القائمة الرئيسية ---
+    ydl_opts = {
+        "outtmpl": os.path.join(DOWNLOADS_DIR, "%(id)s.%(ext)s"),
+        "quiet": True,
+        "no_warnings": True,
+        "ignoreerrors": True,
+        "format": format_code or "bestvideo+bestaudio/best",
+        "noplaylist": True,
+        "retries": 3,
+        "cachedir": False,
+        "nooverwrites": True,
+        "force_generic_extractor": True,
+    }
+
+    if "facebook.com" in url:
+        cookie_path = "facebook_cookies.txt"
+    elif "instagram.com" in url:
+        cookie_path = "instagram_cookies.txt"
+    elif "youtube.com" in url or "youtu.be" in url:
+        cookie_path = "youtube_cookies.txt"
+    else:
+        cookie_path = None
+
+    if cookie_path and os.path.isfile(cookie_path):
+        logger.info(f"استخدام ملف الكوكيز: {cookie_path}")
+        ydl_opts["cookiefile"] = cookie_path
+    else:
+        logger.info("لا يوجد ملف كوكيز مناسب، سيتم التحميل بدون كوكيز")
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            logger.info(f"تم تحميل الملف: {filename}")
+            return filename
+    except Exception as e:
+        logger.error(f"خطأ في تحميل الفيديو: {e}")
+        return None
+
 def main_menu_keyboard(user_id: int):
     buttons = [
         [InlineKeyboardButton("🔢 معرفي (ID)", callback_data="show_id")],
@@ -140,27 +200,6 @@ def main_menu_keyboard(user_id: int):
         buttons.append([InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")])
     return InlineKeyboardMarkup(buttons)
 
-# --- أوامر البوت ---
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    add_user_if_not_exists(user_id)
-    keyboard = [
-        [InlineKeyboardButton("➕ مشاركة البوت", url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}")],
-        [InlineKeyboardButton("🧑‍💻 المطور", url="https://t.me/K0_MG")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    if is_vip(user_id):
-        text = random.choice(VIP_WELCOME_MESSAGES) + "\n\n🎉 أنت عضو VIP وتم تفعيل التحميل بلا حدود وسرعة التحميل العالية."
-    else:
-        text = (
-            "👁‍🗨✨ *أهلاً بك في البُعد الآخر من التحميل!*\n\n"
-            "هل أنت مستعدّ لاختراق عوالم الفيديوهات من فيسبوك، يوتيوب، إنستغرام، وتيك توك؟ 🚀📥\n"
-            "هنا حيث تنصهر الروابط وتولد الملفات! 🌐🔥\n\n"
-            "📎 فقط أرسل الرابط، وسأقوم بالباقي... لا حاجة للشرح، فقط الثقة 💼🤖\n\n"
-            "🛠️ *تم بناء هذا البوت بعناية بواسطة محسن علي حسين* 🎮💻"
-        )
-    await update.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -171,7 +210,8 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         await query.edit_message_text(f"🔢 معرفك في البوت هو: `{user_id}`", parse_mode="Markdown")
 
     elif data == "earn_points":
-        bot_link = f"https://t.me/{BOT_USERNAME}"
+        bot_username = context.bot.username
+        bot_link = f"https://t.me/{bot_username}"
         text = (
             "🎰 اكسب تحميلات مجانية!\n\n"
             "شارك البوت مع 3 أصدقاء لتحصل على 3 نقاط (= 3 تحميلات مجانية).\n"
@@ -263,78 +303,45 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         context.user_data["admin_action"] = None
 
 async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    now = time.time()
-    url = update.message.text.strip()
-
-    if user_id in user_timestamps and now - user_timestamps[user_id] < SPAM_WAIT_SECONDS:
-        await update.message.reply_text(f"⏳ الرجاء الانتظار {int(SPAM_WAIT_SECONDS - (now - user_timestamps[user_id]))} ثانية قبل إرسال رابط جديد.")
-        return
-    user_timestamps[user_id] = now
-
     if context.user_data.get("admin_action"):
         return
 
+    url = update.message.text.strip()
+    user_id = update.effective_user.id
+
     add_user_if_not_exists(user_id)
 
-    if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
-        await update.message.reply_text("❌ هذا الرابط غير مدعوم. أرسل رابط من YouTube أو Facebook أو Instagram أو TikTok.")
+    can_dl, msg = can_download(user_id)
+    if not can_dl:
+        await update.message.reply_text(msg)
         return
 
-    if "tiktok.com" in url:
-        weird_messages = [
-            "👽 جاري التواصل مع كائنات TikTok الفضائية...",
-            "🔮 فتح بوابة الزمن الرقمي...",
-            "🧪 خلط فيديوهات TikTok في المختبر السري...",
-            "🐍 استدعاء تنين TikTok لتحميل الفيديو...",
-            "📡 التقاط إشارة من سيرفرات الصين...",
-            "🚀 تحميل الفيديو بسرعة تتجاوز سرعة الضوء... تقريبًا",
-            "🧠 استخدام الذكاء الاصطناعي لفك شيفرة الرابط...",
-            "💿 إدخال قرص TikTok داخل مشغل VHS الفضائي...",
-            "👾 استدعاء روبوت التحميل من بعد آخر...",
-            "🍕 رش جبنة على الرابط للحصول على نكهة أفضل للفيديو...",
-            "🎩 تحويل الرابط إلى أرنب وسحبه من القبعة...",
-            "🐢 تحميل الفيديو... بسرعة سلحفاة نينجا 🐢 (امزح، هو سريع!)"
-        ]
-        loading_msg = random.choice(weird_messages)
-        await update.message.reply_text(f"{loading_msg}\n⏳ جاري تحميل الفيديو...")
-        ydl_opts = {
-            'outtmpl': os.path.join(DOWNLOADS_DIR, '%(id)s.%(ext)s'),
-            'format': 'mp4',
-            'quiet': True,
-        }
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                file_path = ydl.prepare_filename(info)
+    await update.message.reply_text("⏳ جارٍ تحميل الفيديو... انتظر قليلاً.")
+    filepath = download_media(url)
+    if filepath and os.path.isfile(filepath):
+        with open(filepath, "rb") as video_file:
+            await update.message.reply_document(document=video_file)
+        record_download(user_id)
+        os.remove(filepath)
+    else:
+        await update.message.reply_text("❌ حدث خطأ أثناء التحميل.")
 
-            await update.message.reply_video(video=open(file_path, 'rb'))
-            os.remove(file_path)
-        except Exception as e:
-            await update.message.reply_text(f"❌ فشل التحميل من TikTok:\n{str(e)}")
-        return
-
-    await update.message.reply_text("📥 جاري تحميل الفيديو، يرجى الانتظار...")
-
-    try:
-        file_path = os.path.join(DOWNLOADS_DIR, "video.mp4")
-        command = ["yt-dlp", "-f", "mp4", "-o", file_path, url]
-        subprocess.run(command, check=True)
-
-        if os.path.exists(file_path):
-            await update.message.reply_video(video=open(file_path, "rb"))
-            os.remove(file_path)
-        else:
-            await update.message.reply_text("❌ لم يتم العثور على الملف بعد التحميل.")
-    except subprocess.CalledProcessError as e:
-        await update.message.reply_text(f"❌ خطأ أثناء تحميل الفيديو:\n{str(e)}")
-    except Exception as e:
-        await update.message.reply_text(f"❌ خطأ غير متوقع:\n{str(e)}")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"/start command من المستخدم: {update.effective_user.id}")
+    user_id = update.effective_user.id
+    add_user_if_not_exists(user_id)
+    if is_vip(user_id):
+        text = random.choice(VIP_WELCOME_MESSAGES) + "\n\n🎉 أنت عضو VIP وتم تفعيل التحميل بلا حدود وسرعة التحميل العالية."
+    else:
+        text = random.choice(WELCOME_MESSAGES)
+    await update.message.reply_text(text, reply_markup=main_menu_keyboard(user_id))
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "أرسل رابط فيديو من YouTube أو TikTok أو Facebook أو Instagram لتحميله.\n"
-        "المستخدم العادي محدود بـ10 تحميلات يومياً مع انتظار 10 ثوانٍ بين كل تحميل.\n"
+        "لـ YouTube يمكنك اختيار صيغة التحميل (صوت فقط، فيديو، أو شورت).\n"
+        "يمكنك الضغط على الأزرار للتحكم في حسابك أو الاشتراك في VIP.\n"
+        "المستخدم العادي محدود بـ10 تحميلات يومياً مع انتظار 60 ثانية بين كل تحميل.\n"
         "VIP تحميل غير محدود وتسريع تحميل.\n"
         "/start - لبدء المحادثة\n"
         "/help - لعرض هذه المساعدة\n"
@@ -342,13 +349,15 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_text)
 
 def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CallbackQueryHandler(callback_query_handler))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), admin_text_handler))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), download_handler))
-    app.run_polling()
+    application = Application.builder().token(BOT_TOKEN).build()
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CallbackQueryHandler(callback_query_handler))
+    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), admin_text_handler))
+    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), download_handler))
+
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
