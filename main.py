@@ -2,12 +2,18 @@ import os
 import random
 import logging
 import time
-import subprocess
 import sqlite3
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    filters,
+    ContextTypes,
+)
 import yt_dlp
 
 # إعداد اللوج
@@ -16,12 +22,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# توكن البوت واسم المستخدم
+# إعدادات البوت
 TOKEN = "8444492438:AAGH0f5wTCYiie3Vhv9d8rlv1i4LvR6VMW4"
 BOT_USERNAME = "Dr7a_bot"
 ADMIN_ID = 7249021797
 
-# مجلد التحميل
 DOWNLOADS_DIR = "downloads"
 if not os.path.exists(DOWNLOADS_DIR):
     os.makedirs(DOWNLOADS_DIR)
@@ -46,6 +51,9 @@ CREATE TABLE IF NOT EXISTS vip_users (
 """)
 conn.commit()
 
+# حماية سبام المستخدمين
+user_timestamps = {}
+
 # رسائل ترحيب
 WELCOME_MESSAGES = [
     "🔥 نظام التحميل مفتوح... أدخل رابطك وخلي السرعة تشتغل.",
@@ -62,29 +70,24 @@ VIP_WELCOME_MESSAGES = [
 ]
 
 VIP_PRICE = "5,000 دينار عراقي"
-SPAM_WAIT_SECONDS = 10  # من الكود الجديد
+SPAM_WAIT_SECONDS = 10
 MAX_DAILY_DOWNLOADS = 10
 
-# حماية سبام المستخدمين
-user_timestamps = {}
-
-# دوال قاعدة البيانات والإدارة (كما سبق)
+# قاعدة بيانات دوال
 def is_vip(user_id: int) -> bool:
     c.execute("SELECT vip_expiry FROM vip_users WHERE user_id = ?", (user_id,))
     row = c.fetchone()
     if row:
-        expiry_str = row[0]
-        expiry_dt = datetime.strptime(expiry_str, "%Y-%m-%d %H:%M:%S")
+        expiry_dt = datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S")
         if expiry_dt > datetime.now():
             return True
         else:
             c.execute("DELETE FROM vip_users WHERE user_id = ?", (user_id,))
             conn.commit()
-            return False
     return False
 
 def add_user_if_not_exists(user_id: int):
-    c.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
+    c.execute("SELECT 1 FROM users WHERE user_id = ?", (user_id,))
     if not c.fetchone():
         c.execute("INSERT INTO users (user_id) VALUES (?)", (user_id,))
         conn.commit()
@@ -108,15 +111,16 @@ def record_download(user_id: int):
     add_user_if_not_exists(user_id)
     if not is_vip(user_id):
         now_ts = int(time.time())
-        c.execute("UPDATE users SET daily_downloads = daily_downloads + 1, last_download_time = ? WHERE user_id = ?", (now_ts, user_id))
+        c.execute(
+            "UPDATE users SET daily_downloads = daily_downloads + 1, last_download_time = ? WHERE user_id = ?",
+            (now_ts, user_id)
+        )
         conn.commit()
 
 def add_vip(user_id: int, days: int = 30):
     expiry = datetime.now() + timedelta(days=days)
-    c.execute(
-        "REPLACE INTO vip_users (user_id, vip_expiry) VALUES (?, ?)",
-        (user_id, expiry.strftime("%Y-%m-%d %H:%M:%S")),
-    )
+    c.execute("REPLACE INTO vip_users (user_id, vip_expiry) VALUES (?, ?)",
+              (user_id, expiry.strftime("%Y-%m-%d %H:%M:%S")))
     conn.commit()
 
 def remove_vip(user_id: int):
@@ -141,7 +145,7 @@ def main_menu_keyboard(user_id: int):
         buttons.append([InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")])
     return InlineKeyboardMarkup(buttons)
 
-# دالة تحميل الفيديو باستخدام yt-dlp (كما في الكود القديم)
+# دالة تحميل الفيديو باستخدام yt-dlp
 def download_media(url: str, format_code: str = None) -> str:
     ydl_opts = {
         "outtmpl": os.path.join(DOWNLOADS_DIR, "%(id)s.%(ext)s"),
@@ -177,7 +181,7 @@ def download_media(url: str, format_code: str = None) -> str:
         logger.error(f"خطأ في تحميل الفيديو: {e}")
         return None
 
-# رسالة /start مدمجة من الكود الجديد مع أزرار المشاركة
+# أمر /start مع مشاركة البوت وأزرار المطور
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     add_user_if_not_exists(user_id)
@@ -200,7 +204,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
 
-# معالج الأزرار (كما في الكود القديم)
+# معالج الأزرار
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -279,7 +283,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     else:
         await query.edit_message_text("⚠️ خيار غير معروف.")
 
-# معالجة إدخال نص لإدارة VIP
+# إدخال نص الإداري لإضافة أو إزالة VIP
 async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id != ADMIN_ID:
@@ -303,30 +307,29 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(f"✅ تم إزالة VIP من المستخدم {text}.")
         context.user_data["admin_action"] = None
 
-# معالج الرسائل لتحميل الفيديوهات
+# معالج تحميل الفيديو مع حماية سبام و تمييز TikTok
 async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     now = time.time()
     url = update.message.text.strip()
 
-    # حماية سبام (10 ثواني)
+    # حماية سبام 10 ثواني
     if user_id in user_timestamps and now - user_timestamps[user_id] < SPAM_WAIT_SECONDS:
         await update.message.reply_text(f"⏳ الرجاء الانتظار {int(SPAM_WAIT_SECONDS - (now - user_timestamps[user_id]))} ثانية قبل إرسال رابط جديد.")
         return
     user_timestamps[user_id] = now
 
-    # منع تحميل لو في انتظار إدخال إداري
+    # منع التحميل أثناء إدخال إداري
     if context.user_data.get("admin_action"):
         return
 
     add_user_if_not_exists(user_id)
 
-    # التحقق من الرابط المدعوم
     if not any(site in url for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
         await update.message.reply_text("❌ هذا الرابط غير مدعوم. أرسل رابط من YouTube أو Facebook أو Instagram أو TikTok.")
         return
 
-    # TikTok برسالة خاصة
+    # معالجة TikTok خاصة مع رسائل عشوائية
     if "tiktok.com" in url:
         weird_messages = [
             "👽 جاري التواصل مع كائنات TikTok الفضائية...",
@@ -360,7 +363,7 @@ async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ فشل التحميل من TikTok:\n{str(e)}")
         return
 
-    # باقي المواقع
+    # باقي المواقع بتحميل عادي مع yt-dlp subprocess
     await update.message.reply_text("📥 جاري تحميل الفيديو، يرجى الانتظار...")
 
     try:
@@ -378,14 +381,17 @@ async def download_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ خطأ غير متوقع:\n{str(e)}")
 
-def main():
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", lambda u,c: u.message.reply_text("أرسل رابط فيديو لتحميله.")))
-    app.add_handler(CallbackQueryHandler(callback_query_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_text_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_handler))
-    app.run_polling()
+# أمر /help بسيط
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    help_text = (
+        "أرسل رابط فيديو من YouTube أو TikTok أو Facebook أو Instagram لتحميله.\n"
+        "المستخدم العادي محدود بـ10 تحميلات يومياً مع انتظار 10 ثوانٍ بين كل تحميل.\n"
+        "VIP تحميل غير محدود وتسريع تحميل.\n"
+        "/start - لبدء المحادثة\n"
+        "/help - لعرض هذه المساعدة\n"
+    )
+    await update.message.reply_text(help_text)
 
-if __name__ == "__main__":
-    main()
+# نقطة الدخول لتشغيل البوت
+def main():
+    app = Application.builder().token(T
