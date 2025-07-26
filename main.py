@@ -17,7 +17,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
-TOKEN = "7552405839:AAF8Pe8sTJnrr-rnez61HhxnwAVsth2IuaU"
+TOKEN = "8444492438:AAGH0f5wTCYiie3Vhv9d8rlv1i4LvR6VMW4"
 ADMIN_ID = 7249021797
 BOT_USERNAME = "Dr7a_bot"
 
@@ -175,13 +175,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "vip_features":
         vip_msg = (
+            "🔥 لا تفوت الفرصة الذهبية 🔥\n\n"
+            "خلّك VIP وعيش الرفاهية التقنية:\n\n"
             "⭐ مميزات VIP:\n"
-            "- تحميل غير محدود\n"
-            "- تسريع التحميل\n"
-            "- دعم مباشر\n"
-            "- وغيرها الكثير..."
+            "✅ تحميل بلا حدود – نزّل براحتك، ماكو حد\n"
+            "✅ تسريع خارق – الفيديو ينزل قبل لا تفكر بيه\n"
+            "✅ دعم مباشر من المطور – تحتاج شي؟ موجودين\n"
+            "✅ مزايا سرّية بس للمميزين 😏\n\n"
+            "💸 السعر: 5,000 دينار عراقي فقط!\n\n"
+            "💥 اشترك الآن وخلي البوت يخدمك مثل الملوك 👑\n"
+            "الفخامة تبدأ من ضغطة زر!"
         )
-        await query.edit_message_text(vip_msg)
+
+        keyboard = [
+            [InlineKeyboardButton("💎 اشترك الآن", url="https://t.me/K0_MG")]
+        ]
+        await query.edit_message_text(vip_msg, reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif query.data == "subscribe_now":
         subscribe_msg = (
