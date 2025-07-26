@@ -72,21 +72,13 @@ def is_vip(user_id):
             return True
     return False
 
-def update_vip(user_id, minutes=30):
+def update_vip(user_id, minutes=60*24*30):  # 30 يوم
     user = get_user(user_id)
     now_str = datetime.now().strftime("%Y-%m-%d")
     if user:
-        last_vip_date = user[5]
-        daily_vip_minutes = user[4] or 0
-        if last_vip_date == now_str and daily_vip_minutes >= 30:
-            return False
-        remain = 30 - daily_vip_minutes
-        add_min = min(minutes, remain)
-        new_vip_until = datetime.now() + timedelta(minutes=add_min)
+        new_vip_until = datetime.now() + timedelta(minutes=minutes)
         vip_until_str = new_vip_until.strftime("%Y-%m-%d %H:%M:%S")
-        new_daily_vip = daily_vip_minutes + add_min
-        c.execute("UPDATE users SET vip_until=?, points=0, daily_vip_minutes=?, last_vip_date=? WHERE user_id=?",
-                  (vip_until_str, new_daily_vip, now_str, user_id))
+        c.execute("UPDATE users SET vip_until=?, points=0, daily_vip_minutes=?, last_vip_date=? WHERE user_id=?", (vip_until_str, minutes, now_str, user_id))
         conn.commit()
         return True
     return False
@@ -128,6 +120,7 @@ def get_points(user_id):
     return row[0] if row else 0
 
 user_timestamps = {}
+user_share_wait = set()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -135,26 +128,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("🆔 معرفي", callback_data="show_id")],
+        [InlineKeyboardButton("🤝 شارك البوت واربح VIP", callback_data="share_bot")],
+        [InlineKeyboardButton("⭐ مميزات VIP", callback_data="vip_features"),
+         InlineKeyboardButton("💳 اشترك الآن", callback_data="subscribe_now")],
+        [InlineKeyboardButton("📊 كم تبقى تحميلات اليوم؟", callback_data="remaining_downloads"),
+         InlineKeyboardButton("✅ التحقق من الاشتراك", callback_data="check_subscription")]
     ]
-
-    if get_points(user_id) < 5:
-        keyboard[0].append(InlineKeyboardButton("🎁 اكسب تحميلات مجانية", callback_data="free_downloads"))
-    else:
-        keyboard[0].append(InlineKeyboardButton("🎉 نقاط كافية! تفعيل VIP تلقائي", callback_data="auto_vip"))
-
-    keyboard.append([
-        InlineKeyboardButton("⭐ مميزات VIP", callback_data="vip_features"),
-        InlineKeyboardButton("💳 اشترك الآن", callback_data="subscribe_now")
-    ])
-
-    keyboard.append([
-        InlineKeyboardButton("📊 كم تبقى تحميلات اليوم؟", callback_data="remaining_downloads"),
-        InlineKeyboardButton("✅ التحقق من الاشتراك", callback_data="check_subscription")
-    ])
-
     if is_vip(user_id):
         keyboard.append([InlineKeyboardButton("⚡️ تسريع التحميل", callback_data="speed_up")])
-
     if user_id == ADMIN_ID:
         keyboard.append([InlineKeyboardButton("⚙️ لوحة التحكم", callback_data="admin_panel")])
 
@@ -176,71 +157,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     add_user_if_not_exists(user_id)
 
+    if query.data == "share_bot":
+        today = datetime.now().strftime("%Y-%m-%d")
+        c.execute("SELECT last_vip_date FROM users WHERE user_id=?", (user_id,))
+        last_vip_date = c.fetchone()[0]
+        if last_vip_date == today:
+            await query.edit_message_text("لقد استخدمت ميزة VIP المجانية لهذا اليوم بالفعل!")
+            return
+        user_share_wait.add(user_id)
+        await query.edit_message_text(
+            "👥 شارك البوت مع 5 أصدقاء أو أي قناة/مجموعة، ثم أرسل لقطة شاشة هنا.\n\nرابط البوت:\nhttps://t.me/Dr7a_bot"
+        )
+        return
+
     if query.data == "show_id":
         await query.edit_message_text(f"🆔 معرفك هو: `{user_id}`", parse_mode=ParseMode.MARKDOWN)
-
-    elif query.data == "free_downloads":
-        share_url = f"https://t.me/{BOT_USERNAME}"
-        keyboard = [
-            [InlineKeyboardButton("📤 شارك البوت الآن", url=f"https://t.me/share/url?url={share_url}&text=جرب_هذا_البوت_الخاص_بالتحميل!")],
-            [InlineKeyboardButton("✅ تأكيد المشاركة", callback_data="confirm_share")],
-            [InlineKeyboardButton("❓ كم عدد نقاطك؟", callback_data="show_points")]
-        ]
-        text = (
-            "🎁 شارك البوت مع أصدقائك! \n"
-            "اضغط على زر 'شارك البوت الآن' لتسهيل المشاركة.\n\n"
-            "بعد مشاركة البوت، اضغط 'تأكيد المشاركة' لأحسب لك نقطة.\n"
-            "⚠️ *تنبيه:* لا يمكنك الحصول على أكثر من 30 دقيقة VIP من نقاط المشاركة في اليوم الواحد.\n"
-            "يرجى الصدق والضغط على تأكيد المشاركة فقط بعد المشاركة الفعلية.\n"
-            "كل 5 نقاط تحصل على VIP نصف ساعة!"
-        )
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.MARKDOWN)
-
-    elif query.data == "confirm_share":
-        if is_vip(user_id):
-            await query.answer("⚠️ أنت مشترك VIP بالفعل، لا يمكن إضافة نقاط VIP إضافية الآن.", show_alert=True)
-            return
-
-        user = get_user(user_id)
-        now_str = datetime.now().strftime("%Y-%m-%d")
-        daily_vip = user[4] if user else 0
-
-        if user and user[5] != now_str:
-            c.execute("UPDATE users SET daily_vip_minutes=0, last_vip_date=? WHERE user_id=?", (now_str, user_id))
-            conn.commit()
-            daily_vip = 0
-
-        if daily_vip >= 30:
-            await query.answer("⚠️ لقد وصلت الحد اليومي (30 دقيقة VIP). حاول غداً.", show_alert=True)
-            return
-
-        added = update_vip(user_id, minutes=30)
-        if added:
-            points = get_points(user_id)
-            await query.answer(f"✅ تم تفعيل VIP نصف ساعة وأضيفت نقطة. نقاطك الحالية: {points}", show_alert=True)
-        else:
-            await query.answer("⚠️ لم تتم إضافة دقائق VIP، ربما وصلت الحد اليومي.", show_alert=True)
-
-    elif query.data == "show_points":
-        points = get_points(user_id)
-        await query.answer(f"نقاطك الحالية: {points}", show_alert=True)
-
-    elif query.data == "auto_vip":
-        points = get_points(user_id)
-        if points >= 5:
-            added = update_vip(user_id, minutes=30)
-            if added:
-                await query.edit_message_text(
-                    "🎉 تم تفعيل اشتراك VIP لمدة 30 دقيقة بنجاح! استمتع بالتسريع والتحميل بلا حدود."
-                )
-            else:
-                await query.edit_message_text(
-                    "⚠️ لقد وصلت الحد اليومي (30 دقيقة VIP) من نقاط المشاركة."
-                )
-        else:
-            await query.edit_message_text(
-                "❌ نقاطك غير كافية لتفعيل VIP. استمر في مشاركة روابط أصدقائك."
-            )
 
     elif query.data == "vip_features":
         vip_msg = (
@@ -268,14 +199,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(f"📊 تبقى لك {remaining} تحميلات اليوم (الحد الأقصى 10).")
 
     elif query.data == "check_subscription":
-        if is_vip(user_id):
-            await query.edit_message_text("✅ أنت مشترك VIP حاليًا.")
+        user = get_user(user_id)
+        if is_vip(user_id) and user[0]:
+            await query.edit_message_text(
+                f"✅ أنت مشترك VIP حاليًا.\nينتهي الاشتراك في: {user[0]}"
+            )
         else:
             await query.edit_message_text("❌ أنت غير مشترك VIP حالياً.")
 
     elif query.data == "speed_up":
         if is_vip(user_id):
-            await query.edit_message_text("⚡️ تسريع التحميل مفعّل فقط للمشتركين VIP.")
+            await query.answer("تم تفعيل تسريع التحميل لأنك مشترك VIP ✅", show_alert=True)
+            await query.edit_message_text("⚡️ تم تفعيل تسريع التحميل بأقصى سرعة! استمتع 💎")
         else:
             await query.edit_message_text("❌ هذه الميزة متاحة فقط للمشتركين VIP.")
 
@@ -296,17 +231,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "add_vip":
         if user_id == ADMIN_ID:
-            await update.message.reply_text("📝 أرسل معرف المستخدم لإضافة اشتراك VIP له:")
+            await query.message.reply_text("📝 أرسل معرف المستخدم لإضافة اشتراك VIP له:")
             context.user_data["vip_action"] = "add"
         else:
             await query.edit_message_text("❌ ليس لديك صلاحية.")
 
     elif query.data == "remove_vip":
         if user_id == ADMIN_ID:
-            await update.message.reply_text("📝 أرسل معرف المستخدم لحذف اشتراك VIP له:")
+            await query.message.reply_text("📝 أرسل معرف المستخدم لحذف اشتراك VIP له:")
             context.user_data["vip_action"] = "remove"
         else:
-            await update.message.reply_text("❌ ليس لديك صلاحية.")
+            await query.edit_message_text("❌ ليس لديك صلاحية.")
 
     elif query.data == "list_vip":
         if user_id == ADMIN_ID:
@@ -321,86 +256,26 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text(msg)
         else:
             await query.edit_message_text("❌ ليس لديك صلاحية.")
-
     else:
         await query.edit_message_text("❌ خيار غير معروف.")
 
 def get_cookies_path(url):
-    # انستغرام ستوري
     if "instagram.com/stories/" in url:
         return "cookies_instagram_story.txt"
-    # فيسبوك ستوري
     elif ("facebook.com/stories/" in url or "fb.watch" in url and "story" in url):
         return "cookies_facebook_story.txt"
-    # انستغرام عادي
     elif "instagram.com" in url:
         return "cookies_instagram.txt"
-    # فيسبوك عادي
     elif "facebook.com" in url or "fb.watch" in url:
         return "cookies_facebook.txt"
-    # يوتيوب
     elif "youtube.com" in url or "youtu.be" in url:
         return "cookies_youtube.txt"
     else:
         return None
 
-async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    text = update.message.text.strip()
-
-    add_user_if_not_exists(user_id)
-    reset_daily_counts_if_new_day(user_id)
-
-    if "vip_action" in context.user_data:
-        action = context.user_data["vip_action"]
-        try:
-            target_id = int(text)
-        except:
-            await update.message.reply_text("❌ المعرف غير صالح. حاول مرة أخرى.")
-            return
-
-        if action == "add":
-            update_vip(target_id, minutes=60*24*7)
-            await update.message.reply_text(f"✅ تم إضافة VIP للمستخدم {target_id} لمدة 7 أيام.")
-        elif action == "remove":
-            c.execute("UPDATE users SET vip_until=NULL WHERE user_id=?", (target_id,))
-            conn.commit()
-            await update.message.reply_text(f"✅ تم إزالة VIP للمستخدم {target_id}.")
-
-        context.user_data.pop("vip_action")
-        return
-
-    if any(site in text for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
-        now = time.time()
-        if not is_vip(user_id):
-            downloads = get_daily_downloads(user_id)
-            if downloads >= 10:
-                await update.message.reply_text("❌ وصلت الحد اليومي للتحميلات. اشترك VIP لتحميل بلا حدود.")
-                return
-            if user_id in user_timestamps and now - user_timestamps[user_id] < 10:
-                await update.message.reply_text("⏳ الرجاء الانتظار قليلاً قبل إرسال رابط جديد.")
-                return
-            user_timestamps[user_id] = now
-
-        if not is_vip(user_id):
-            add_point(user_id)
-            points = get_points(user_id)
-            if points >= 5:
-                await update.message.reply_text(
-                    "🎉 مبروك! لديك 5 نقاط. اضغط زر 'تفعيل VIP تلقائي' في الواجهة الرئيسية لتحصل على VIP نصف ساعة."
-                )
-            else:
-                await update.message.reply_text(f"✅ تم احتساب نقطة لك. نقاطك الحالية: {points}.")
-
-        await download_video(update, context)
-    else:
-        await update.message.reply_text("❌ أرسل رابط فيديو صالح من YouTube أو Facebook أو Instagram أو TikTok.")
-
 async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     url = update.message.text.strip()
-
-    # دعم ملفات الكوكيز تلقائياً
     cookies_file = get_cookies_path(url)
 
     if "tiktok.com" in url:
@@ -417,7 +292,6 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 file_path = ydl.prepare_filename(info)
-
             await update.message.reply_video(video=open(file_path, 'rb'))
             os.remove(file_path)
             increment_download(user_id)
@@ -426,16 +300,12 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await update.message.reply_text("📥 جاري تحميل الفيديو، يرجى الانتظار...")
-
     try:
         file_path = "downloads/video.mp4"
         command = ["yt-dlp", "-f", "mp4", "-o", file_path, url]
-        # دعم الكوكيز للمنصات الأخرى (يوتيوب/فيسبوك/انستا)
         if cookies_file and os.path.exists(cookies_file):
             command = ["yt-dlp", "--cookies", cookies_file, "-f", "mp4", "-o", file_path, url]
-
         subprocess.run(command, check=True)
-
         if os.path.exists(file_path):
             await update.message.reply_video(video=open(file_path, "rb"))
             increment_download(user_id)
@@ -447,11 +317,72 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ خطأ غير متوقع:\n{str(e)}")
 
+async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    text = update.message.text.strip()
+    add_user_if_not_exists(user_id)
+    reset_daily_counts_if_new_day(user_id)
+    now = time.time()
+
+    # الجزء المهم لإضافة أو حذف VIP
+    if "vip_action" in context.user_data:
+        action = context.user_data["vip_action"]
+        try:
+            target_id = int(text)
+        except:
+            await update.message.reply_text("❌ المعرف غير صالح. حاول مرة أخرى.")
+            context.user_data.pop("vip_action")
+            return
+        if action == "add":
+            update_vip(target_id, minutes=60*24*30)
+            await update.message.reply_text(f"✅ تم إضافة VIP للمستخدم {target_id} لمدة 30 يوم.")
+        elif action == "remove":
+            c.execute("UPDATE users SET vip_until=NULL WHERE user_id=?", (target_id,))
+            conn.commit()
+            await update.message.reply_text(f"✅ تم إزالة VIP للمستخدم {target_id}.")
+        context.user_data.pop("vip_action")
+        return
+
+    if any(site in text for site in ["youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "instagram", "tiktok.com"]):
+        if not is_vip(user_id):
+            downloads = get_daily_downloads(user_id)
+            if downloads >= 10:
+                await update.message.reply_text("❌ وصلت الحد اليومي للتحميلات. اشترك VIP لتحميل بلا حدود.")
+                return
+            if user_id in user_timestamps and now - user_timestamps[user_id] < 60:
+                wait_sec = int(60 - (now - user_timestamps[user_id]))
+                await update.message.reply_text(f"⏳ الرجاء الانتظار {wait_sec} ثانية قبل إرسال رابط جديد.")
+                return
+            user_timestamps[user_id] = now
+        await download_video(update, context)
+    else:
+        if is_vip(user_id):
+            vip_funny_replies = [
+                "😂 مشترك VIP وتحچي؟ كاعد بعرش الذهب وتكتبلي؟ 😎",
+                "🤣 لك مشترك VIP وتريد تشتكي؟ راحة البال مضمونة!",
+                "👑 شتريد بعد؟ أنت VIP يعني فوق القانون 😂",
+                "🤑 راح أنفذ لك الطلب حتى لو تريد فيديو من المريخ!",
+                "😂 رجاءً لا تطلب شي غريب... مثل تحميل دموع حزنك 😢",
+            ]
+            await update.message.reply_text(random.choice(vip_funny_replies))
+        else:
+            await update.message.reply_text("❌ أرسل رابط فيديو صالح من YouTube أو Facebook أو Instagram أو TikTok.")
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id in user_share_wait:
+        user_share_wait.remove(user_id)
+        update_vip(user_id, minutes=3)
+        await update.message.reply_text("🎉 مبروك لقد ربحت VIP لمدة 3 دقائق!")
+    else:
+        await update.message.reply_text("هذه الخدمة مخصصة فقط بعد مشاركة البوت.")
+
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.run_polling()
 
 if __name__ == "__main__":
