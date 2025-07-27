@@ -1,0 +1,20 @@
+# Netscape HTTP Cookie File
+# http://curl.haxx.se/rfc/cookie_spec.html
+# This is a generated file!  Do not edit.
+
+.facebook.com	TRUE	/login/device-based/	TRUE	1761226023	dbln	%7B%2261578378819130%22%3A%22bGjANGSb%22%7D
+.facebook.com	TRUE	/	TRUE	1788009680	datr	0ISDaKaT_-jqpV_9eXLVOwG6
+.facebook.com	TRUE	/	TRUE	1788010019	sb	0ISDaEFYM8VBpLE4T_2waC4a
+.facebook.com	TRUE	/	TRUE	1784986019	c_user	61578378819130
+.facebook.com	TRUE	/	TRUE	1784986019	xs	12%3AyzkD1fCUcbZzog%3A2%3A1753450015%3A-1%3A-1
+.facebook.com	TRUE	/	TRUE	1754054823	locale	ar_AR
+.facebook.com	TRUE	/	TRUE	1788147991	pas	61578378819130%3AHj7d1Is6T6
+.facebook.com	TRUE	/	TRUE	1758771992	vpd	v1%3B741x393x2.75
+.facebook.com	TRUE	/	TRUE	1754193128	dpr	3.0234789848327637
+.facebook.com	TRUE	/	TRUE	1788011250	ps_l	1
+.facebook.com	TRUE	/	TRUE	1788011250	ps_n	1
+.facebook.com	TRUE	/	TRUE	1785123992	fbl_st	101038551%3BT%3A29226466
+.facebook.com	TRUE	/	TRUE	1761363992	wl_cbv	v2%3Bclient_version%3A2880%3Btimestamp%3A1753587992
+.facebook.com	TRUE	/	TRUE	1761364325	fr	167etSYaRd4RJPL12.AWfCuG7hxWuB0QbNIiKqifbbfMEq7vIzPALLg_LHqgsonpqN4hk.Bog4lE..AAA.0.0.BohaJm.AWeRRnLnIOuLqxbG9xoJ1AD8L4c
+.facebook.com	TRUE	/	TRUE	1754193128	wd	891x1680
+.facebook.com	TRUE	/	TRUE	0	presence	C%7B%22t3%22%3A%5B%5D%2C%22utc3%22%3A1753588328678%2C%22v%22%3A1%7D
