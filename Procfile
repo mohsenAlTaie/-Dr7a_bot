@@ -1,1 +1,1 @@
-worker: python main_videobot.py
+worker: python main.py
