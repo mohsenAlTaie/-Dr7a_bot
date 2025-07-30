@@ -296,8 +296,10 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'format': 'mp4',
             'quiet': True,
         }
-        if cookies_file and os.path.exists(cookies_file):
-            ydl_opts['cookiefile'] = cookies_file
+        # استخدم ملف cookies_tiktok.txt إذا موجود دائماً
+        tiktok_cookies = "cookies_tiktok.txt"
+        if os.path.exists(tiktok_cookies):
+            ydl_opts['cookiefile'] = tiktok_cookies
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
@@ -397,3 +399,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
