@@ -2,17 +2,18 @@
 # http://curl.haxx.se/rfc/cookie_spec.html
 # This is a generated file!  Do not edit.
 
-.facebook.com	TRUE	/login/device-based/	TRUE	1762175097	dbln	%7B%2261578378819130%22%3A%22NcZP69xk%22%7D
+.facebook.com	TRUE	/login/device-based/	TRUE	1762409655	dbln	%7B%2261578378819130%22%3A%22HZekJlxh%22%7D
 .facebook.com	TRUE	/	TRUE	1788009680	datr	0ISDaKaT_-jqpV_9eXLVOwG6
-.facebook.com	TRUE	/	TRUE	1788959097	sb	0ISDaEFYM8VBpLE4T_2waC4a
+.facebook.com	TRUE	/	TRUE	1789193655	sb	0ISDaEFYM8VBpLE4T_2waC4a
 .facebook.com	TRUE	/	TRUE	1788455719	pas	61578378819130%3AHj7d1Is6T6
 .facebook.com	TRUE	/	TRUE	1759079722	vpd	v1%3B741x393x2.75
 .facebook.com	TRUE	/	TRUE	1788011250	ps_l	1
 .facebook.com	TRUE	/	TRUE	1788011250	ps_n	1
-.facebook.com	TRUE	/	TRUE	1755003937	dpr	3.0234789848327637
+.facebook.com	TRUE	/	TRUE	1755238546	dpr	3.0234789848327637
 .facebook.com	TRUE	/	TRUE	1788149454	oo	v1
 .facebook.com	TRUE	/	TRUE	1761671726	wl_cbv	v2%3Bclient_version%3A2883%3Btimestamp%3A1753895720
-.facebook.com	TRUE	/	TRUE	1755003937	wd	891x1680
-.facebook.com	TRUE	/	TRUE	1785935097	c_user	61578378819130
-.facebook.com	TRUE	/	TRUE	1785935097	xs	23%3AYwIzdQ6jKUlruA%3A2%3A1754399095%3A-1%3A-1
-.facebook.com	TRUE	/	TRUE	1762175113	fr	1qxKSkHXJdI7xpSPY.AWeoXo4xlqZRvigHkQ-knTDpUTvXyPfqm1038Mv8VeI-_aMhl5Q.BoilMm..AAA.0.0.BokgGJ.AWdTXZkvJVeRHEfp_qSHDLNqJ1g
+.facebook.com	TRUE	/	TRUE	1786169655	c_user	61578378819130
+.facebook.com	TRUE	/	TRUE	1762409655	fr	1qxKSkHXJdI7xpSPY.AWeUoKso_RlQcniFleF3Sgtv6-LzuRdVieJjqjRVcwQD-0xUH5c.BoilMm..AAA.0.0.BolZW3.AWeHQkI1v_H5vSpEaj2WbCszJlw
+.facebook.com	TRUE	/	TRUE	1786169655	xs	3%3Agq5SHft3XvYqNQ%3A2%3A1754633655%3A-1%3A-1
+.facebook.com	TRUE	/	TRUE	1755238546	wd	1190x2243
+.facebook.com	TRUE	/	TRUE	0	presence	C%7B%22t3%22%3A%5B%5D%2C%22utc3%22%3A1754633746847%2C%22v%22%3A1%7D
